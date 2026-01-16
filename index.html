@@ -24,21 +24,18 @@
   .tabs { max-width:1100px; margin:0 auto 10px; display:flex; gap:8px; }
   .tab { background:var(--tab); border:1px solid var(--border); color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
   .tab.active { background:#1a2230; color:#fff; border-color:#2b3a51; }
-  .panel { display:none; }
-  .panel.active { display:block; }
+  .panel { display:none; } .panel.active { display:block; }
   .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
   .card { background:var(--card); border:1px solid var(--border); padding:12px; border-radius:12px; }
   .card h3 { margin:4px 0 10px; display:flex; align-items:center; gap:10px; }
   .chip { font-size:.75rem; background:var(--chip); border:1px solid #22324a; color:#cbd5e1; padding:2px 8px; border-radius:999px; }
   .chip.ok{ background:var(--chip-ok); border-color:#1d6830; color:#d1fae5 }
-  .chip.warn{ background:var(--chip-warn); border-color:#8a5a0a; color:#fde68a }
   .chip.err{ background:var(--chip-err); border-color:#8b1a1a; color:#fecaca }
   .list { display:grid; gap:6px; }
   .row { display:grid; grid-template-columns:24px 1fr 100px 120px 90px; gap:8px; align-items:center; padding:8px; border:1px solid #1f2937; border-radius:8px; background:#0f1620; }
   .row img { width:24px; height:24px; border-radius:50%; display:block; }
   .row .name { display:flex; gap:6px; align-items:baseline; }
-  .row .name a { color:#e5e7eb; text-decoration:none; }
-  .row .name a:hover { text-decoration:underline; }
+  .row .name a { color:#e5e7eb; text-decoration:none; } .row .name a:hover { text-decoration:underline; }
   .row .name .sym { color:#9ca3af; font-size:.9rem; }
   .chg { font-weight:600; text-align:right; }
   .pos { color:var(--green); } .neg { color:var(--red); }
@@ -48,179 +45,113 @@
   .refs a { color:#93c5fd; text-decoration:underline; }
   details.debug { max-width:1100px; margin:14px auto; background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:8px 12px; }
   .log { white-space:pre-wrap; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; color:#cbd5e1; max-height:220px; overflow:auto; background:#0b1119; border:1px solid #1f2937; border-radius:8px; padding:8px; }
-  @media (max-width: 760px) {
-    .two { grid-template-columns:1fr; }
-    .row { grid-template-columns:24px 1fr 90px 100px 80px; }
-  }
+  @media (max-width: 760px) {.two { grid-template-columns:1fr; } .row { grid-template-columns:24px 1fr 90px 100px 80px; }}
 </style>
 </head>
 <body>
   <h1>📈 Token Movers — Microcaps & Majors</h1>
   <div class="meta">
-    <span id="updated">Loading…</span> · Auto‑refresh every 60s ·
-    <button id="refreshBtn">Refresh</button>
+    <span id="updated">Loading…</span> · Auto‑refresh every 60s · <button id="refreshBtn">Refresh</button>
   </div>
 
-  <!-- WHAT YOU’RE SEEING -->
-  <div class="banner" id="about">
+  <div class="banner">
     <h2 style="margin:0 0 6px">What you’re seeing</h2>
     <p>
-      This page shows the day’s <strong>top gainers and losers</strong> by <em>24‑hour price change (%)</em> for two groups:
-      <strong>Tiny Microcaps</strong> (market cap &lt; <strong>$50M</strong>) and <strong>Major Players</strong> (Top‑100 by market cap).
-      Use the search box to filter by name or symbol. Data refreshes every minute.
+      Day’s <strong>top gainers and losers</strong> by <em>24‑hour % change</em> for:
+      <strong>Tiny Microcaps</strong> (market cap &lt; <strong>$50M</strong>) and <strong>Major Players</strong> (Top‑100).
+      Use the search box to filter. Refreshes every minute.
     </p>
-    <p class="muted">
-      Numbers are sourced from public market data aggregators; thin‑liquidity microcaps can be volatile or noisy.
-      Always check liquidity and listings before acting.
-    </p>
+    <p class="muted">Small caps can be noisy; verify liquidity/listings before acting.</p>
   </div>
 
-  <!-- Controls -->
   <div class="topbar">
-    <input id="search" class="search" type="text" placeholder="Search name or symbol…" />
+    <input id="search" type="text" placeholder="Search name or symbol…" />
     <input id="cgKey" type="password" placeholder="(Optional) CoinGecko Demo API key" />
     <button id="saveKey">Save key</button>
     <button id="clearKey">Clear key</button>
-    <span id="keyStatus" style="color:var(--yellow);"></span>
+    <span id="keyStatus" style="color:#fbbf24;"></span>
   </div>
 
-  <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" data-tab="micro">Microcaps (&lt;$50M)</div>
     <div class="tab" data-tab="majors">Major Players (Top‑100)</div>
   </div>
 
-  <!-- Microcaps Panel -->
   <div id="panel-micro" class="panel active">
     <div class="two">
       <div class="card">
-        <h3>Top 15 Gainers (24h) <span id="micro-source" class="chip">loading…</span></h3>
+        <h3>Top 15 Gainers (24h) <span id="micro-src1" class="chip">loading…</span></h3>
         <div id="micro-gainers" class="list"></div>
       </div>
       <div class="card">
-        <h3>Top 15 Losers (24h) <span id="micro-source-2" class="chip">loading…</span></h3>
+        <h3>Top 15 Losers (24h) <span id="micro-src2" class="chip">loading…</span></h3>
         <div id="micro-losers" class="list"></div>
       </div>
     </div>
   </div>
 
-  <!-- Majors Panel -->
   <div id="panel-majors" class="panel">
     <div class="two">
       <div class="card">
-        <h3>Top 15 Gainers (24h) <span id="majors-source" class="chip">loading…</span></h3>
+        <h3>Top 15 Gainers (24h) <span id="majors-src1" class="chip">loading…</span></h3>
         <div id="majors-gainers" class="list"></div>
       </div>
       <div class="card">
-        <h3>Top 15 Losers (24h) <span id="majors-source-2" class="chip">loading…</span></h3>
+        <h3>Top 15 Losers (24h) <span id="majors-src2" class="chip">loading…</span></h3>
         <div id="majors-losers" class="list"></div>
       </div>
     </div>
   </div>
 
-  <!-- Methodology & Data Sources -->
   <details open>
     <summary>📚 Methodology & Data Sources</summary>
     <div style="margin-top:8px; line-height:1.5">
       <ol>
-        <li>
-          <strong>Universe & segmentation.</strong>
-          <ul>
-            <li><em>Tiny Microcaps</em>: tokens with reported <strong>market cap &lt; $50,000,000</strong>.</li>
-            <li><em>Major Players</em>: the <strong>Top‑100</strong> tokens by market cap.</li>
-          </ul>
-        </li>
-        <li>
-          <strong>Primary data source (CoinGecko).</strong>
-          We pull snapshots from CoinGecko’s
-          <code>/api/v3/coins/markets</code> (price, market cap, 24h % change, logo).
-          Optional Demo API key is sent via <code>x-cg-demo-api-key</code> for steadier limits (~30 calls/min).  
-          Docs: https://docs.coingecko.com/v3.0.1/reference/coins-markets • Rate limits: https://docs.coingecko.com/docs/common-errors-rate-limit
-        </li>
-        <li>
-          <strong>Fallback (CoinPaprika).</strong>
-          If CoinGecko is unavailable, we query CoinPaprika <code>/v1/tickers?quotes=USD</code> and compute the same lists client‑side.  
-          Docs: https://docs.coinpaprika.com/
-        </li>
-        <li>
-          <strong>Computation.</strong>
-          Remove entries with missing cap or non‑positive price; compute 24h % gainers/losers; show top 15 each.
-        </li>
-        <li>
-          <strong>Refresh & storage.</strong>
-          Auto‑refresh every <strong>60s</strong>. Your Demo key (if supplied) is stored only in your browser (LocalStorage), not in this repo.
-        </li>
+        <li><strong>Segments.</strong> Microcaps = market cap &lt; $50,000,000. Majors = Top‑100 by market cap.</li>
+        <li><strong>Primary source (CoinGecko).</strong> Snapshot via <code>/api/v3/coins/markets</code> (price, cap, 24h %, logo). Demo key increases stability (about 30 calls/min). [3](https://etherscan.io/apis)[2](https://github.com/RegoDefies/Polygon-Docs/blob/master/develop/tools/matic-gas-station.md)</li>
+        <li><strong>Fallbacks.</strong> CoinCap v2 <code>/v2/assets</code> (limit up to 2000; price, cap, 24h %), and CoinPaprika <code>/v1/tickers?quotes=USD</code>. [4](https://documenter.getpostman.com/view/5283764/RznLEvU7)[5](https://docs.coinpaprika.com/api-reference/tickers/get-tickers-for-all-active-coins)</li>
+        <li><strong>Computation.</strong> Exclude entries with missing cap or non‑positive price; rank by 24h % change; display top 15 gainers/losers for each segment.</li>
+        <li><strong>Storage & refresh.</strong> Optional CoinGecko Demo key is kept in your browser (LocalStorage). Auto‑refresh every 60s.</li>
       </ol>
     </div>
   </details>
 
-  <details class="debug">
-    <summary>🛠 Debug (optional)</summary>
-    <div class="log" id="debugLog">No logs yet.</div>
-  </details>
+  <details class="debug"><summary>🛠 Debug (optional)</summary><div id="debugLog" class="log">No logs yet.</div></details>
 
 <script>
-/* ======= debug logger ======= */
-const dlogEl = document.getElementById('debugLog');
-function dlog(...a){ dlogEl.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; dlogEl.scrollTop = dlogEl.scrollHeight; }
+/* ---------- Debug logger ---------- */
+const LOG = document.getElementById('debugLog');
+function dlog(...a){ LOG.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; LOG.scrollTop = LOG.scrollHeight; }
 
-/* ======= tabs ======= */
+/* ---------- Tabs ---------- */
 document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click',()=> {
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+    t.classList.add('active'); document.getElementById('panel-'+t.dataset.tab).classList.add('active');
   });
 });
 
-/* ======= key storage + URL capture ======= */
-const LS_KEY = 'CG_DEMO_KEY';
-const keyInput = document.getElementById('cgKey');
-const keyStatus = document.getElementById('keyStatus');
+/* ---------- Key storage (+ URL capture ?ck=...) ---------- */
+const LS_KEY='CG_DEMO_KEY', keyInput=document.getElementById('cgKey'), keyStatus=document.getElementById('keyStatus');
 function getCgKey(){ return (localStorage.getItem(LS_KEY)||'').trim(); }
-function maskKey(k){ return k? k.slice(0,4)+'•••'+k.slice(-2):'';}
-function updateKeyUI(){ const k=getCgKey(); keyStatus.textContent = k? `CoinGecko key saved (${maskKey(k)})` : 'No CoinGecko key (fallback enabled)'; }
-(function captureKey(){
-  const p = new URLSearchParams(location.search);
-  const ck = (p.get('ck')||'').trim();
-  if(ck && ck.length>10){ localStorage.setItem(LS_KEY, ck); history.replaceState({},'',location.pathname); dlog('Captured CG key from URL param:', maskKey(ck)); }
-})();
-updateKeyUI();
-document.getElementById('saveKey').onclick=()=>{ const k=keyInput.value.trim(); if(!k){alert('Paste your CoinGecko Demo key first'); return;} localStorage.setItem(LS_KEY,k); keyInput.value=''; updateKeyUI(); loadMajors(); loadMicro(); };
-document.getElementById('clearKey').onclick=()=>{ localStorage.removeItem(LS_KEY); updateKeyUI(); loadMajors(); loadMicro(); };
+function mask(k){ return k? k.slice(0,4)+'•••'+k.slice(-2):''; }
+function updateKeyUI(){ const k=getCgKey(); keyStatus.textContent = k? `CoinGecko key saved (${mask(k)})` : 'No CoinGecko key (fallbacks enabled)'; }
+(function capture(){ const p=new URLSearchParams(location.search); const ck=(p.get('ck')||'').trim(); if(ck && ck.length>10){ localStorage.setItem(LS_KEY, ck); history.replaceState({},'',location.pathname); dlog('Captured CG key via URL:', mask(ck)); }})(); updateKeyUI();
+document.getElementById('saveKey').onclick=()=>{ const k=keyInput.value.trim(); if(!k){alert('Paste your CoinGecko Demo key first'); return;} localStorage.setItem(LS_KEY,k); keyInput.value=''; updateKeyUI(); initLoad(); };
+document.getElementById('clearKey').onclick=()=>{ localStorage.removeItem(LS_KEY); updateKeyUI(); initLoad(); };
 
-/* ======= search filter ======= */
-const searchInput = document.getElementById('search');
-let lastData = { micro:[], majors:[] };
-searchInput.addEventListener('input', ()=> renderAll(lastData));
+/* ---------- Search ---------- */
+const searchInput=document.getElementById('search'); let cache={ micro:[], majors:[] }; searchInput.addEventListener('input', ()=> renderAll(cache));
 
-/* ======= helpers ======= */
-function fmtUSD(x){ if(x==null) return '—'; if(x>=1) return '$'+x.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+x.toFixed(6); }
+/* ---------- Helpers ---------- */
+function fmtUSD(x){ if(x==null) return '—'; if(x>=1) return '$'+x.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+Number(x).toFixed(6); }
 function fmtCap(x){ if(!x&&x!==0) return '—'; if(x>=1e9) return '$'+(x/1e9).toFixed(2)+'B'; if(x>=1e6) return '$'+(x/1e6).toFixed(2)+'M'; return '$'+Math.round(x).toLocaleString(); }
-function byChangeDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
-function byChangeAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
+function byDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
+function byAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
 function esc(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-
-function normalizeCgCoin(c){
-  return {
-    id:c.id, name:c.name, symbol:(c.symbol||'').toUpperCase(),
-    price:c.current_price, cap:c.market_cap, pct24:c.price_change_percentage_24h,
-    img:c.image, link:`https://www.coingecko.com/en/coins/${c.id}`
-  };
-}
-function normalizeCpCoin(c){
-  const q = c.quotes?.USD || {};
-  return {
-    id:c.id, name:c.name, symbol:(c.symbol||'').toUpperCase(),
-    price:q.price, cap:q.market_cap, pct24:q.percent_change_24h,
-    img:'', link:`https://coinpaprika.com/coin/${c.id}/`
-  };
-}
-
-/* ======= proper row rendering (fixed HTML) ======= */
 function rowHTML(c){
-  const img = c.img ? `<img src="${esc(c.img)}" alt="${esc(c.symbol)}" loading="lazy" />` : '🪙';
+  const img = c.img ? `<img src="${esc(c.img)}" alt="">` : '🪙';
   return `
     <div class="row">
       <div>${img}</div>
@@ -231,161 +162,138 @@ function rowHTML(c){
       <div>${fmtUSD(c.price)}</div>
       <div>${fmtCap(c.cap)}</div>
       <div class="chg ${c.pct24>=0?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
-    </div>
-  `;
+    </div>`;
 }
-function renderList(rootId, rows){
-  const q = (searchInput.value||'').trim().toLowerCase();
-  const filtered = q? rows.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)) : rows;
-  const root = document.getElementById(rootId);
-  root.innerHTML = filtered.map(rowHTML).join('');
+function renderList(id, rows){
+  const q=(searchInput.value||'').trim().toLowerCase();
+  const f = q? rows.filter(c=>c.name.toLowerCase().includes(q)||c.symbol.toLowerCase().includes(q)) : rows;
+  document.getElementById(id).innerHTML = f.map(rowHTML).join('');
 }
-function renderAll(data){
-  lastData = data;
-  renderList('micro-gainers', [...data.micro].sort(byChangeDesc).slice(0,15));
-  renderList('micro-losers',  [...data.micro].sort(byChangeAsc).slice(0,15));
-  renderList('majors-gainers', [...data.majors].sort(byChangeDesc).slice(0,15));
-  renderList('majors-losers',  [...data.majors].sort(byChangeAsc).slice(0,15));
+function renderAll(d){
+  cache=d;
+  renderList('micro-gainers', [...d.micro].sort(byDesc).slice(0,15));
+  renderList('micro-losers',  [...d.micro].sort(byAsc).slice(0,15));
+  renderList('majors-gainers', [...d.majors].sort(byDesc).slice(0,15));
+  renderList('majors-losers',  [...d.majors].sort(byAsc).slice(0,15));
 }
 
-/* ======= fetch utilities ======= */
-async function fetchWithTimeout(url, options={}, timeoutMs=8000){
-  const ctrl = new AbortController();
-  const id = setTimeout(()=>ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { ...options, signal: ctrl.signal });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r;
-  } finally { clearTimeout(id); }
+/* ---------- Fetch with timeout ---------- */
+async function fetchWithTimeout(url, opt={}, ms=8000){
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), ms);
+  try{ const r=await fetch(url,{...opt,signal:ctrl.signal}); if(!r.ok) throw new Error(`HTTP ${r.status}`); return r; }
+  finally{ clearTimeout(t); }
 }
 
-/* ======= primary: CoinGecko ======= */
-async function cgMarkets(params, pages=1){
-  const key=getCgKey();
-  const base='https://api.coingecko.com/api/v3/coins/markets';
-  const headers = key? {'x-cg-demo-api-key': key} : {};
-  let all=[];
-  for(let p=1;p<=pages;p++){
-    const q = new URLSearchParams({
-      vs_currency:'usd',
-      order: params.order||'market_cap_desc',
-      per_page: String(params.per_page||250),
-      page: String(p),
-      price_change_percentage:'24h',
-      sparkline:'false'
-    });
-    const url=`${base}?${q.toString()}`;
-    dlog('CG GET', url, key?'(keyed)':'(keyless)');
-    const r = await fetchWithTimeout(url, {headers}, 8000);
-    const j = await r.json();
-    all = all.concat(j.map(normalizeCgCoin));
-    await new Promise(res=>setTimeout(res, 120)); // be gentle
-  }
-  return all;
+/* ---------- Normalizers ---------- */
+function nCG(c){ return { id:c.id,name:c.name,symbol:(c.symbol||'').toUpperCase(), price:c.current_price, cap:c.market_cap, pct24:c.price_change_percentage_24h, img:c.image, link:`https://www.coingecko.com/en/coins/${c.id}` }; }
+function nCP(c){ const q=c.quotes?.USD||{}; return { id:c.id,name:c.name,symbol:(c.symbol||'').toUpperCase(), price:q.price, cap:q.market_cap, pct24:q.percent_change_24h, img:'', link:`https://coinpaprika.com/coin/${c.id}/` }; }
+function nCC(a){ return { id:a.id,name:a.name,symbol:(a.symbol||'').toUpperCase(), price:Number(a.priceUsd), cap:Number(a.marketCapUsd), pct24:Number(a.changePercent24Hr), img:'', link:`https://coincap.io/assets/${a.id}` }; }
+
+/* ---------- Providers ---------- */
+// CoinGecko (primary if key present)
+async function cgMarkets(params){
+  const key=getCgKey(); const headers = key? {'x-cg-demo-api-key':key} : {};
+  const q=new URLSearchParams({
+    vs_currency:'usd', order: params.order||'market_cap_desc',
+    per_page:String(params.per_page||250), page:String(params.page||1),
+    price_change_percentage:'24h', sparkline:'false'
+  });
+  const url=`https://api.coingecko.com/api/v3/coins/markets?${q}`;
+  dlog('CG GET', url, key?'(keyed)':'(keyless)');
+  const r=await fetchWithTimeout(url,{headers}, 8000);
+  const j=await r.json(); return j.map(nCG);
 }
 
-/* ======= fallback: CoinPaprika ======= */
+// CoinPaprika (fallback)
 async function cpTickers(){
   const url='https://api.coinpaprika.com/v1/tickers?quotes=USD';
   dlog('CP GET', url);
-  const r = await fetchWithTimeout(url, {}, 10000);
-  const j = await r.json();
-  return j.map(normalizeCpCoin);
+  const r=await fetchWithTimeout(url,{},10000);
+  return (await r.json()).map(nCP);
 }
 
-/* ======= loaders: render independently (no all-or-nothing) ======= */
-const CAP_MAX_MICRO = 50_000_000;
-
-async function loadMicro(){
-  const sourceBadge = document.getElementById('micro-source');
-  const sourceBadge2 = document.getElementById('micro-source-2');
-  sourceBadge.textContent = sourceBadge2.textContent = 'loading…'; sourceBadge.className='chip'; sourceBadge2.className='chip';
-
-  try {
-    // 1) Try CoinGecko — minimal requests first
-    // Page 1 of the smallest caps; if too few, try page 2; then (as a different path) try pages 9–10 of DESC to catch the tail.
-    let micro = [];
-    try {
-      const asc1 = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 1);
-      micro = asc1.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
-      if (micro.length < 15) {
-        const asc2 = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 2);
-        micro = micro.concat(asc2.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0));
-      }
-      if (micro.length < 15) {
-        // try “tail” pages in DESC order (these numbers are heuristic)
-        const desc9 = await cgMarkets({ order:'market_cap_desc', per_page:250 }, 9);
-        micro = micro.concat(desc9.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0));
-      }
-    } catch (inner) {
-      dlog('CG micro path failed ->', inner.message||inner);
-    }
-
-    if (micro.length < 10) {
-      dlog('Microcaps: switching to CoinPaprika fallback…');
-      const cpAll = await cpTickers();
-      micro = cpAll.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
-      sourceBadge.textContent = sourceBadge2.textContent = 'CoinPaprika';
-      sourceBadge.classList.add('ok'); sourceBadge2.classList.add('ok');
-    } else {
-      sourceBadge.textContent = sourceBadge2.textContent = 'CoinGecko';
-      sourceBadge.classList.add('ok'); sourceBadge2.classList.add('ok');
-    }
-
-    lastData.micro = micro;
-    renderList('micro-gainers', [...micro].sort(byChangeDesc).slice(0,15));
-    renderList('micro-losers',  [...micro].sort(byChangeAsc).slice(0,15));
-  } catch (e) {
-    dlog('Microcaps loader error:', e.message||e);
-    sourceBadge.textContent = sourceBadge2.textContent = 'error';
-    sourceBadge.classList.add('err'); sourceBadge2.classList.add('err');
-    // Keep previously rendered majors if any
-  } finally {
-    document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-  }
+// CoinCap (fallback A — very browser‑friendly)
+async function ccAssets(limit=2000){
+  const url=`https://api.coincap.io/v2/assets?limit=${limit}`;
+  dlog('CC GET', url);
+  const r=await fetchWithTimeout(url,{},10000);
+  const j=await r.json();
+  return (j.data||[]).map(nCC);
 }
+
+/* ---------- Loaders (independent) ---------- */
+const CAP_MAX=50_000_000;
 
 async function loadMajors(){
-  const sourceBadge = document.getElementById('majors-source');
-  const sourceBadge2 = document.getElementById('majors-source-2');
-  sourceBadge.textContent = sourceBadge2.textContent = 'loading…'; sourceBadge.className='chip'; sourceBadge2.className='chip';
-
-  try {
-    let majors = [];
-    try {
-      const top = await cgMarkets({ order:'market_cap_desc', per_page:100 }, 1);
-      majors = top.filter(c=>c.cap && c.price>0).slice(0,100);
-      sourceBadge.textContent = sourceBadge2.textContent = 'CoinGecko';
-      sourceBadge.classList.add('ok'); sourceBadge2.classList.add('ok');
-    } catch (inner) {
-      dlog('CG majors failed ->', inner.message||inner);
-      // Fallback to CoinPaprika: take top 100 by cap
-      const all = await cpTickers();
-      majors = all.filter(c=>c.cap && c.price>0).sort((a,b)=>b.cap-a.cap).slice(0,100);
-      sourceBadge.textContent = sourceBadge2.textContent = 'CoinPaprika';
-      sourceBadge.classList.add('ok'); sourceBadge2.classList.add('ok');
+  const b1=document.getElementById('majors-src1'), b2=document.getElementById('majors-src2');
+  b1.textContent=b2.textContent='loading…'; b1.className=b2.className='chip';
+  try{
+    let majors=[];
+    // Prefer CoinGecko ONLY if a key is present; else use CoinCap to avoid CG WAF throttling
+    if(getCgKey()){
+      try{ majors = (await cgMarkets({order:'market_cap_desc', per_page:100, page:1})).slice(0,100); b1.textContent=b2.textContent='CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
+      catch(e){ dlog('CG majors failed ->', e.message||e); }
     }
-    lastData.majors = majors;
-    renderList('majors-gainers', [...majors].sort(byChangeDesc).slice(0,15));
-    renderList('majors-losers',  [...majors].sort(byChangeAsc).slice(0,15));
-  } catch (e) {
-    dlog('Majors loader error:', e.message||e);
-    sourceBadge.textContent = sourceBadge2.textContent = 'error';
-    sourceBadge.classList.add('err'); sourceBadge2.classList.add('err');
-  } finally {
-    document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-  }
+    if(!majors.length){
+      try{ const data=await ccAssets(2000); majors=data.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100); b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
+      catch(e){ dlog('CC majors failed ->', e.message||e); }
+    }
+    if(!majors.length){
+      const data=await cpTickers(); majors=data.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100);
+      b1.textContent=b2.textContent='CoinPaprika'; b1.classList.add('ok'); b2.classList.add('ok');
+    }
+    cache.majors=majors;
+    renderList('majors-gainers', [...majors].sort(byDesc).slice(0,15));
+    renderList('majors-losers',  [...majors].sort(byAsc).slice(0,15));
+  }catch(e){ dlog('Majors loader error:', e.message||e); b1.textContent=b2.textContent='error'; b1.classList.add('err'); b2.classList.add('err'); }
+  finally{ document.getElementById('updated').textContent='Last updated: '+new Date().toLocaleTimeString(); }
 }
 
-/* ======= init + refresh ======= */
-async function initLoad(){
-  // Load independently (so one failure doesn’t block the other)
-  loadMajors();
-  loadMicro();
+async function loadMicro(){
+  const b1=document.getElementById('micro-src1'), b2=document.getElementById('micro-src2');
+  b1.textContent=b2.textContent='loading…'; b1.className=b2.className='chip';
+  try{
+    let micro=[];
+    // Prefer CoinCap (single call) to avoid CG asc multi‑paging when keyless
+    try{
+      const data=await ccAssets(2000);
+      micro=data.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
+      if(micro.length){ b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
+    }catch(e){ dlog('CC micro failed ->', e.message||e); }
+
+    // If CoinCap didn’t work, try CoinGecko (one or two targeted pages)
+    if(!micro.length){
+      try{
+        // Page 1 asc; if thin, also pull page 2 (kept minimal to stay under limits)
+        const asc1=await cgMarkets({order:'market_cap_asc', per_page:250, page:1});
+        micro=asc1.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
+        if(micro.length<15){
+          const asc2=await cgMarkets({order:'market_cap_asc', per_page:250, page:2});
+          micro=micro.concat(asc2.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0));
+        }
+        if(micro.length){ b1.textContent=b2.textContent=getCgKey()?'CoinGecko (keyed)':'CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
+      }catch(e){ dlog('CG micro failed ->', e.message||e); }
+    }
+
+    // Last fallback: CoinPaprika
+    if(!micro.length){
+      const data=await cpTickers();
+      micro=data.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
+      b1.textContent=b2.textContent='CoinPaprika'; b1.classList.add('ok'); b2.classList.add('ok');
+    }
+
+    cache.micro=micro;
+    renderList('micro-gainers', [...micro].sort(byDesc).slice(0,15));
+    renderList('micro-losers',  [...micro].sort(byAsc).slice(0,15));
+  }catch(e){ dlog('Microcaps loader error:', e.message||e); b1.textContent=b2.textContent='error'; b1.classList.add('err'); b2.classList.add('err'); }
+  finally{ document.getElementById('updated').textContent='Last updated: '+new Date().toLocaleTimeString(); }
 }
-document.getElementById('refreshBtn').onclick = initLoad;
-initLoad();
-setInterval(initLoad, 60_000);
+
+/* ---------- Init + refresh ---------- */
+function initLoad(){ loadMajors(); loadMicro(); }
+document.getElementById('refreshBtn').onclick=initLoad;
+initLoad(); setInterval(initLoad, 60_000);
 </script>
 </body>
 </html>
+``
