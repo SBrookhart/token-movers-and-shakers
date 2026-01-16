@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Token Movers — Microcaps & Majors</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg:#0b0f14; --card:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
+    --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620;
+  }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:20px; }
+  h1 { text-align:center; margin:0 0 4px; }
+  .meta { text-align:center; color:var(--muted); margin-bottom:12px; }
+  .topbar { max-width:1100px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; }
+  .topbar input { background:#0f1620; color:#e5e7eb; border:1px solid #1f2937; border-radius:8px; padding:6px 10px; min-width:260px; }
+  .topbar button { background:#1f2937; color:var(--text); border:1px solid var(--border); padding:6px 10px; border-radius:8px; cursor:pointer; }
+  .topbar button:hover { background:var(--accent); }
+  .tabs { max-width:1100px; margin:0 auto 10px; display:flex; gap:8px; }
+  .tab { background:var(--tab); border:1px solid var(--border); color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
+  .tab.active { background:#1a2230; color:#fff; border-color:#2b3a51; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
+  .card { background:var(--card); border:1px solid var(--border); padding:12px; border-radius:12px; }
+  .card h3 { margin:4px 0 10px; }
+  .list { display:grid; gap:6px; }
+  .row { display:grid; grid-template-columns:24px 1fr 90px 120px 90px; gap:8px; align-items:center; padding:8px; border:1px solid #1f2937; border-radius:8px; background:#0f1620; }
+  .row .name { display:flex; gap:6px; align-items:baseline; }
+  .row .name .sym { color:#9ca3af; font-size:.9rem; }
+  .chg { font-weight:600; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .toolbar { display:flex; gap:8px; margin-top:6px; align-items:center; }
+  .search { flex:1; }
+  details.debug { max-width:1100px; margin:14px auto; background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:8px 12px; }
+  .log { white-space:pre-wrap; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; color:#cbd5e1; max-height:220px; overflow:auto; background:#0b1119; border:1px solid #1f2937; border-radius:8px; padding:8px; }
+</style>
+</head>
+<body>
+  <h1>📈 Token Movers — Microcaps & Majors</h1>
+  <div class="meta">
+    <span id="updated">Loading…</span> · Auto‑refresh every 60s ·
+    <button id="refreshBtn">Refresh</button>
+  </div>
+
+  <div class="topbar">
+    <input id="search" class="search" type="text" placeholder="Search name or symbol…" />
+    <input id="cgKey" type="password" placeholder="(Optional) CoinGecko Demo API key" />
+    <button id="saveKey">Save key</button>
+    <button id="clearKey">Clear key</button>
+    <span id="keyStatus" style="color:#fbbf24;"></span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="micro">Microcaps (&lt;$50M)</div>
+    <div class="tab" data-tab="majors">Major Players (Top‑100)</div>
+  </div>
+
+  <!-- Microcaps Panel -->
+  <div id="panel-micro" class="panel active">
+    <div class="toolbar"><h2 style="margin:0">Microcaps (&lt;$50M)</h2></div>
+    <div class="two">
+      <div class="card">
+        <h3>Top 15 Gainers (24h)</h3>
+        <div id="micro-gainers" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>Top 15 Losers (24h)</h3>
+        <div id="micro-losers" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Majors Panel -->
+  <div id="panel-majors" class="panel">
+    <div class="toolbar"><h2 style="margin:0">Major Players (Top‑100)</h2></div>
+    <div class="two">
+      <div class="card">
+        <h3>Top 15 Gainers (24h)</h3>
+        <div id="majors-gainers" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>Top 15 Losers (24h)</h3>
+        <div id="majors-losers" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <details class="debug">
+    <summary>Debug (optional)</summary>
+    <div class="log" id="debugLog">No logs yet.</div>
+    <div style="margin-top:6px;color:#9ca3af;font-size:12px">
+      Primary data: CoinGecko <code>/api/v3/coins/markets</code> (Demo key optional, 30 rpm). Fallback: CoinPaprika <code>/v1/tickers?quotes=USD</code>.
+    </div>
+  </details>
+
+<script>
+/* ======= small debug logger ======= */
+const dlogEl = document.getElementById('debugLog');
+function dlog(...a){ dlogEl.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; dlogEl.scrollTop = dlogEl.scrollHeight; }
+
+/* ======= tabs ======= */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=> {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  });
+});
+
+/* ======= key storage + URL capture ======= */
+const LS_KEY = 'CG_DEMO_KEY';
+const keyInput = document.getElementById('cgKey');
+const keyStatus = document.getElementById('keyStatus');
+function getCgKey(){ return (localStorage.getItem(LS_KEY)||'').trim(); }
+function maskKey(k){ return k? k.slice(0,4)+'•••'+k.slice(-2):'';}
+function updateKeyUI(){ const k=getCgKey(); keyStatus.textContent = k? `Key saved (${maskKey(k)})` : 'No CoinGecko key (fallback enabled)'; }
+(function captureKey(){
+  const p = new URLSearchParams(location.search);
+  const ck = (p.get('ck')||'').trim();
+  if(ck && ck.length>10){ localStorage.setItem(LS_KEY, ck); history.replaceState({},'',location.pathname); }
+})();
+updateKeyUI();
+document.getElementById('saveKey').onclick=()=>{ const k=keyInput.value.trim(); if(!k){alert('Paste your CoinGecko Demo key first'); return;} localStorage.setItem(LS_KEY,k); keyInput.value=''; updateKeyUI(); loadAll(); };
+document.getElementById('clearKey').onclick=()=>{ localStorage.removeItem(LS_KEY); updateKeyUI(); loadAll(); };
+
+/* ======= search filter ======= */
+const searchInput = document.getElementById('search');
+let lastData = { micro:[], majors:[] };
+searchInput.addEventListener('input', ()=> renderAll(lastData));
+
+/* ======= helpers ======= */
+function fmtUSD(x){ if(x==null) return '—'; if(x>=1) return '$'+x.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+x.toFixed(6); }
+function fmtCap(x){ if(!x&&x!==0) return '—'; if(x>=1e9) return '$'+(x/1e9).toFixed(2)+'B'; if(x>=1e6) return '$'+(x/1e6).toFixed(2)+'M'; return '$'+Math.round(x).toLocaleString(); }
+function byChangeDesc(a,b){ return (b.pct24||-Infinity)-(a.pct24||-Infinity); }
+function byChangeAsc(a,b){ return (a.pct24||Infinity)-(b.pct24||Infinity); }
+function normalizeCgCoin(c){
+  return {
+    id:c.id, name:c.name, symbol:(c.symbol||'').toUpperCase(),
+    price:c.current_price, cap:c.market_cap, pct24:c.price_change_percentage_24h,
+    img:c.image, link:`https://www.coingecko.com/en/coins/${c.id}`
+  };
+}
+function normalizeCpCoin(c){
+  const q = c.quotes?.USD || {};
+  return {
+    id:c.id, name:c.name, symbol:(c.symbol||'').toUpperCase(),
+    price:q.price, cap:q.market_cap, pct24:q.percent_change_24h,
+    img:'', link:`https://coinpaprika.com/coin/${c.id}/`
+  };
+}
+
+/* ======= data sources ======= */
+// CoinGecko: /coins/markets (paged). Optional Demo key via header x-cg-demo-api-key
+async function cgMarkets(params, pages=1){
+  const key=getCgKey();
+  const base='https://api.coingecko.com/api/v3/coins/markets';
+  const headers = key? {'x-cg-demo-api-key': key} : {};
+  let all=[];
+  for(let p=1;p<=pages;p++){
+    const q = new URLSearchParams({
+      vs_currency:'usd',
+      order: params.order||'market_cap_desc',
+      per_page: String(params.per_page||250),
+      page: String(p),
+      price_change_percentage:'24h',
+      sparkline:'false'
+    });
+    if(params.category) q.set('category', params.category);
+    const url=`${base}?${q.toString()}`;
+    dlog('CG:', url, key?'(keyed)':'(keyless)');
+    const r = await fetch(url, {headers});
+    if(!r.ok) throw new Error(`CG HTTP ${r.status}`);
+    const j = await r.json();
+    all = all.concat(j.map(normalizeCgCoin));
+    // slight delay to be kind to rate limits
+    await new Promise(res=>setTimeout(res, 150));
+  }
+  return all;
+}
+
+// CoinPaprika fallback: /v1/tickers?quotes=USD (returns many; we filter client‑side)
+async function cpTickers(){
+  const url='https://api.coinpaprika.com/v1/tickers?quotes=USD';
+  dlog('CP:', url);
+  const r = await fetch(url);
+  if(!r.ok) throw new Error(`CP HTTP ${r.status}`);
+  const j = await r.json();
+  return j.map(normalizeCpCoin);
+}
+
+/* ======= fetch microcaps & majors with fallback ======= */
+const CAP_MAX_MICRO = 50_000_000; // $50M
+
+async function loadMicrocaps(){
+  // Try CoinGecko first: sort ascending cap to capture small caps fast
+  try{
+    // Pull 2 pages (500 rows) of smallest market caps
+    const all = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 2);
+    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+    dlog('Microcaps from CG:', micro.length);
+    return micro;
+  } catch(e){
+    dlog('CG micro failed ->', e.message||e);
+    // Fallback to CoinPaprika: filter by cap
+    const all = await cpTickers();
+    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+    dlog('Microcaps from CP:', micro.length);
+    return micro;
+  }
+}
+
+async function loadMajors(){
+  try{
+    // Top 100 by market cap from CG
+    const top = await cgMarkets({ order:'market_cap_desc', per_page:100 }, 1);
+    dlog('Majors from CG:', top.length);
+    return top;
+  } catch(e){
+    dlog('CG majors failed ->', e.message||e);
+    const all = await cpTickers();
+    const sorted = all.filter(c=>c.cap).sort((a,b)=>b.cap-a.cap).slice(0,100);
+    dlog('Majors from CP:', sorted.length);
+    return sorted;
+  }
+}
+
+/* ======= render ======= */
+function renderList(rootId, rows){
+  const q = (searchInput.value||'').trim().toLowerCase();
+  const filtered = q? rows.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)) : rows;
+  const root = document.getElementById(rootId);
+  root.innerHTML = filtered.map(c => `
+    <div class="row">
+      <div>${c.img ? `<img src="${c.img}" width="24" height="24" style="border-radius:50%"/>` : '🪙'}</div>
+      <div class="name">
+        <a href="${c.link}" target="_blank" rel="noopener" style="color:#e2e8f0;text-decoration:none">${c.name}</a>
+        <span class="sym">${c.symbol}</span>
+      </div>
+      <div>${fmtUSD(c.price)}</div>
+      <div>${fmtCap(c.cap)}</div>
+      <div class="chg ${c.pct24>=0?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
+    </div>
+  `).join('');
+}
+
+function renderAll(data){
+  lastData = data;
+  renderList('micro-gainers', [...data.micro].sort(byChangeDesc).slice(0,15));
+  renderList('micro-losers',  [...data.micro].sort(byChangeAsc).slice(0,15));
+  renderList('majors-gainers', [...data.majors].sort(byChangeDesc).slice(0,15));
+  renderList('majors-losers',  [...data.majors].sort(byChangeAsc).slice(0,15));
+}
+
+/* ======= load + refresh ======= */
+async function loadAll(){
+  document.getElementById('updated').textContent = 'Loading…';
+  try{
+    const [micro, majors] = await Promise.all([loadMicrocaps(), loadMajors()]);
+    renderAll({ micro, majors });
+    document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  } catch(e){
+    dlog('loadAll error:', e.message||e);
+    document.getElementById('updated').textContent = 'Error loading data (see Debug)';
+  }
+}
+document.getElementById('refreshBtn').onclick = loadAll;
+
+loadAll();
+setInterval(loadAll, 60_000);
+</script>
+</body>
+</html>
