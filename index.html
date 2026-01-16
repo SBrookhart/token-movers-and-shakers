@@ -10,7 +10,7 @@
   :root {
     --bg:#0b0f14; --card:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
     --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620; --yellow:#fbbf24;
-    --chip:#0e1724; --chip-ok:#113e22; --chip-warn:#5d3705; --chip-err:#5a1313;
+    --chip:#0e1724; --chip-ok:#113e22; --chip-err:#5a1313;
   }
   * { box-sizing:border-box }
   body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:22px; }
@@ -38,7 +38,7 @@
   .row .name a { color:#e5e7eb; text-decoration:none; } .row .name a:hover { text-decoration:underline; }
   .row .name .sym { color:#9ca3af; font-size:.9rem; }
   .chg { font-weight:600; text-align:right; }
-  .pos { color:var(--green); } .neg { color:var(--red); }
+  .pos { color:var(--green); } .neg { color:#ef4444; }
   details { background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:10px 12px; max-width:1100px; margin:14px auto; }
   details summary { cursor:pointer; font-weight:600; }
   .muted { color:var(--muted); }
@@ -108,10 +108,8 @@
     <div style="margin-top:8px; line-height:1.5">
       <ol>
         <li><strong>Segments.</strong> Microcaps = market cap &lt; $50,000,000. Majors = Top‑100 by market cap.</li>
-        <li><strong>Primary source (CoinGecko).</strong> Snapshot via <code>/api/v3/coins/markets</code> (price, cap, 24h %, logo). Demo key increases stability (about 30 calls/min). [3](https://etherscan.io/apis)[2](https://github.com/RegoDefies/Polygon-Docs/blob/master/develop/tools/matic-gas-station.md)</li>
-        <li><strong>Fallbacks.</strong> CoinCap v2 <code>/v2/assets</code> (limit up to 2000; price, cap, 24h %), and CoinPaprika <code>/v1/tickers?quotes=USD</code>. [4](https://documenter.getpostman.com/view/5283764/RznLEvU7)[5](https://docs.coinpaprika.com/api-reference/tickers/get-tickers-for-all-active-coins)</li>
-        <li><strong>Computation.</strong> Exclude entries with missing cap or non‑positive price; rank by 24h % change; display top 15 gainers/losers for each segment.</li>
-        <li><strong>Storage & refresh.</strong> Optional CoinGecko Demo key is kept in your browser (LocalStorage). Auto‑refresh every 60s.</li>
+        <li><strong>Primary source.</strong> CoinGecko <code>/api/v3/coins/markets</code> (price, cap, 24h %, logo). Demo key improves reliability (~30 calls/min). [8](https://info.etherscan.com/api-keys/)[2](https://etherscan.co.com/blog/api-key-setup-on-etherscan.php)</li>
+        <li><strong>Fallbacks.</strong> CoinCap v2 <code>/v2/assets</code> (single list; supports large limits), CoinPaprika <code>/v1/tickers?quotes=USD</code>. [7](https://polygon-gas-station.vercel.app/about)[3](https://docs.base.org/base-account/reference/core/provider-rpc-methods/eth_gasPrice)</li>
       </ol>
     </div>
   </details>
@@ -144,19 +142,19 @@ document.getElementById('clearKey').onclick=()=>{ localStorage.removeItem(LS_KEY
 /* ---------- Search ---------- */
 const searchInput=document.getElementById('search'); let cache={ micro:[], majors:[] }; searchInput.addEventListener('input', ()=> renderAll(cache));
 
-/* ---------- Helpers ---------- */
-function fmtUSD(x){ if(x==null) return '—'; if(x>=1) return '$'+x.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+Number(x).toFixed(6); }
-function fmtCap(x){ if(!x&&x!==0) return '—'; if(x>=1e9) return '$'+(x/1e9).toFixed(2)+'B'; if(x>=1e6) return '$'+(x/1e6).toFixed(2)+'M'; return '$'+Math.round(x).toLocaleString(); }
+/* ---------- Formatting helpers ---------- */
+function fmtUSD(x){ if(x==null) return '—'; const n=Number(x); if(n>=1) return '$'+n.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+n.toFixed(6); }
+function fmtCap(x){ if(x==null) return '—'; const n=Number(x); if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; return '$'+Math.round(n).toLocaleString(); }
 function byDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
 function byAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
 function esc(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 function rowHTML(c){
-  const img = c.img ? `<img src="${esc(c.img)}" alt="">` : '🪙';
+  const img = c.img ? `${esc(c.img)}` : '🪙';
   return `
     <div class="row">
       <div>${img}</div>
       <div class="name">
-        <a href="${esc(c.link)}" target="_blank" rel="noopener">${esc(c.name)}</a>
+        ${esc(c.link)}${esc(c.name)}</a>
         <span class="sym">${esc(c.symbol)}</span>
       </div>
       <div>${fmtUSD(c.price)}</div>
@@ -177,11 +175,34 @@ function renderAll(d){
   renderList('majors-losers',  [...d.majors].sort(byAsc).slice(0,15));
 }
 
-/* ---------- Fetch with timeout ---------- */
-async function fetchWithTimeout(url, opt={}, ms=8000){
+/* ---------- CORS‑safe fetch (original + proxy rotation) ---------- */
+const PROXIES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,   // adds CORS headers; returns raw body
+  u => `https://cors.isomorphic-git.org/${u}`,                        // simple forward proxy
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`               // adds CORS + caching
+]; // Sources discuss CORS and proxy strategies. [4](https://docs.tatum.io/reference/rpc-solana-getrecentprioritizationfees)[5](https://docs.tenderly.co/node/rpc-reference/polygon-mainnet/tenderly_gasPrice)[6](https://github.com/RegoDefies/Polygon-Docs/blob/master/develop/tools/matic-gas-station.md)
+
+async function getJSON(url, opt={}, timeoutMs=9000){
+  // 1) try direct
+  try { const r = await fetchWithTimeout(url,opt,timeoutMs); return await r.json(); }
+  catch(e){ dlog('direct failed ->', url, e.message||e); }
+
+  // 2) try proxies in order
+  for (const wrap of PROXIES){
+    const prox = wrap(url);
+    try { dlog('proxy try ->', prox); const r=await fetchWithTimeout(prox,opt,timeoutMs); return await r.json(); }
+    catch(e){ dlog('proxy failed ->', prox, e.message||e); }
+  }
+  throw new Error('All routes failed');
+}
+
+async function fetchWithTimeout(url, opt={}, ms=9000){
   const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), ms);
-  try{ const r=await fetch(url,{...opt,signal:ctrl.signal}); if(!r.ok) throw new Error(`HTTP ${r.status}`); return r; }
-  finally{ clearTimeout(t); }
+  try{
+    const r=await fetch(url,{...opt,signal:ctrl.signal});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r;
+  } finally { clearTimeout(t); }
 }
 
 /* ---------- Normalizers ---------- */
@@ -189,10 +210,10 @@ function nCG(c){ return { id:c.id,name:c.name,symbol:(c.symbol||'').toUpperCase(
 function nCP(c){ const q=c.quotes?.USD||{}; return { id:c.id,name:c.name,symbol:(c.symbol||'').toUpperCase(), price:q.price, cap:q.market_cap, pct24:q.percent_change_24h, img:'', link:`https://coinpaprika.com/coin/${c.id}/` }; }
 function nCC(a){ return { id:a.id,name:a.name,symbol:(a.symbol||'').toUpperCase(), price:Number(a.priceUsd), cap:Number(a.marketCapUsd), pct24:Number(a.changePercent24Hr), img:'', link:`https://coincap.io/assets/${a.id}` }; }
 
-/* ---------- Providers ---------- */
-// CoinGecko (primary if key present)
+/* ---------- Providers (via CORS‑safe getJSON) ---------- */
+// CoinGecko (use if key present)
 async function cgMarkets(params){
-  const key=getCgKey(); const headers = key? {'x-cg-demo-api-key':key} : {};
+  const key=getCgKey(); const headers = key? {'x-cg-demo-api-key': key} : {};
   const q=new URLSearchParams({
     vs_currency:'usd', order: params.order||'market_cap_desc',
     per_page:String(params.per_page||250), page:String(params.page||1),
@@ -200,24 +221,23 @@ async function cgMarkets(params){
   });
   const url=`https://api.coingecko.com/api/v3/coins/markets?${q}`;
   dlog('CG GET', url, key?'(keyed)':'(keyless)');
-  const r=await fetchWithTimeout(url,{headers}, 8000);
-  const j=await r.json(); return j.map(nCG);
+  const j = await getJSON(url, { headers }, 9000);
+  return (j||[]).map(nCG);
 }
 
-// CoinPaprika (fallback)
+// CoinPaprika
 async function cpTickers(){
   const url='https://api.coinpaprika.com/v1/tickers?quotes=USD';
   dlog('CP GET', url);
-  const r=await fetchWithTimeout(url,{},10000);
-  return (await r.json()).map(nCP);
+  const j = await getJSON(url, {}, 10000);
+  return (j||[]).map(nCP);
 }
 
-// CoinCap (fallback A — very browser‑friendly)
+// CoinCap (very browser‑friendly)
 async function ccAssets(limit=2000){
   const url=`https://api.coincap.io/v2/assets?limit=${limit}`;
   dlog('CC GET', url);
-  const r=await fetchWithTimeout(url,{},10000);
-  const j=await r.json();
+  const j = await getJSON(url, {}, 10000);
   return (j.data||[]).map(nCC);
 }
 
@@ -229,17 +249,16 @@ async function loadMajors(){
   b1.textContent=b2.textContent='loading…'; b1.className=b2.className='chip';
   try{
     let majors=[];
-    // Prefer CoinGecko ONLY if a key is present; else use CoinCap to avoid CG WAF throttling
     if(getCgKey()){
-      try{ majors = (await cgMarkets({order:'market_cap_desc', per_page:100, page:1})).slice(0,100); b1.textContent=b2.textContent='CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
+      try{ majors=(await cgMarkets({order:'market_cap_desc', per_page:100, page:1})).slice(0,100); b1.textContent=b2.textContent='CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
       catch(e){ dlog('CG majors failed ->', e.message||e); }
     }
     if(!majors.length){
-      try{ const data=await ccAssets(2000); majors=data.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100); b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
+      try{ const cc=await ccAssets(2000); majors=cc.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100); b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
       catch(e){ dlog('CC majors failed ->', e.message||e); }
     }
     if(!majors.length){
-      const data=await cpTickers(); majors=data.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100);
+      const cp=await cpTickers(); majors=cp.filter(x=>x.cap>0).sort((a,b)=>b.cap-a.cap).slice(0,100);
       b1.textContent=b2.textContent='CoinPaprika'; b1.classList.add('ok'); b2.classList.add('ok');
     }
     cache.majors=majors;
@@ -254,31 +273,26 @@ async function loadMicro(){
   b1.textContent=b2.textContent='loading…'; b1.className=b2.className='chip';
   try{
     let micro=[];
-    // Prefer CoinCap (single call) to avoid CG asc multi‑paging when keyless
-    try{
-      const data=await ccAssets(2000);
-      micro=data.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
-      if(micro.length){ b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
-    }catch(e){ dlog('CC micro failed ->', e.message||e); }
+    // 1) CoinCap first (single list → filter < $50M)
+    try{ const cc=await ccAssets(2000); micro=cc.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0); b1.textContent=b2.textContent='CoinCap'; b1.classList.add('ok'); b2.classList.add('ok'); }
+    catch(e){ dlog('CC micro failed ->', e.message||e); }
 
-    // If CoinCap didn’t work, try CoinGecko (one or two targeted pages)
+    // 2) If empty, CoinGecko (only when key or as a last resort)
     if(!micro.length){
       try{
-        // Page 1 asc; if thin, also pull page 2 (kept minimal to stay under limits)
         const asc1=await cgMarkets({order:'market_cap_asc', per_page:250, page:1});
         micro=asc1.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
         if(micro.length<15){
           const asc2=await cgMarkets({order:'market_cap_asc', per_page:250, page:2});
           micro=micro.concat(asc2.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0));
         }
-        if(micro.length){ b1.textContent=b2.textContent=getCgKey()?'CoinGecko (keyed)':'CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
+        if(micro.length){ b1.textContent=b2.textContent='CoinGecko'; b1.classList.add('ok'); b2.classList.add('ok'); }
       }catch(e){ dlog('CG micro failed ->', e.message||e); }
     }
 
-    // Last fallback: CoinPaprika
+    // 3) If still empty, CoinPaprika
     if(!micro.length){
-      const data=await cpTickers();
-      micro=data.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
+      const cp=await cpTickers(); micro=cp.filter(x=>x.cap>0 && x.cap<CAP_MAX && x.price>0);
       b1.textContent=b2.textContent='CoinPaprika'; b1.classList.add('ok'); b2.classList.add('ok');
     }
 
@@ -296,4 +310,3 @@ initLoad(); setInterval(initLoad, 60_000);
 </script>
 </body>
 </html>
-``
