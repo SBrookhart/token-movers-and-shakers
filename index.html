@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,18 +132,16 @@
           <strong>Primary data source (CoinGecko).</strong>
           We pull paged market snapshots from CoinGecko’s
           <code>/api/v3/coins/markets</code> endpoint (price, market cap, 24h % change, logo).
-          Optional Demo API key improves rate‑limit stability (about 30 calls/min) — passed via the
+          Optional Demo API key improves rate‑limit stability (~30 calls/min) — passed via the
           <code>x-cg-demo-api-key</code> header. <span class="refs">
-          Sources:
-          <a href="https://docs.coingecko.com/v3.0.1/reference/coins-markets" target="_blank" rel="noopener">CoinGecko Coins/Markets</a>,
-          <a href="https://docs.coingecko.com/docs/common-errors-rate-limit" target="_blank" rel="noopener">Rate limits</a></span>.
+          Docs: https://docs.coingecko.com/v3.0.1/reference/coins-markets</a>,
+          Rate limits: https://docs.coingecko.com/docs/common-errors-rate-limit</a></span>.
         </li>
         <li>
           <strong>Fallback (CoinPaprika).</strong>
-          If CoinGecko is rate‑limited/unavailable, we query CoinPaprika
+          If CoinGecko is rate‑limited/unavailable or returns too few microcaps, we query CoinPaprika
           <code>/v1/tickers?quotes=USD</code> and compute the same lists client‑side.
-          <span class="refs">
-          Source: <a href="https://docs.coinpaprika.com/" target="_blank" rel="noopener">CoinPaprika API</a></span>.
+          <span class="refs">Docs: https://docs.coinpaprika.com/</a></span>.
         </li>
         <li>
           <strong>Computation.</strong>
@@ -228,15 +227,16 @@ function normalizeCpCoin(c){
   };
 }
 
+/* ======= proper row rendering (fixes) ======= */
 function renderList(rootId, rows){
   const q = (searchInput.value||'').trim().toLowerCase();
   const filtered = q? rows.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)) : rows;
   const root = document.getElementById(rootId);
   root.innerHTML = filtered.map(c => `
     <div class="row">
-      <div>${c.img ? `<img src="${c.img}" alt="">` : '🪙'}</div>
+      <div>${c.img ? `<img src="${c.img}" alt="${c.symbol}">` : '🪙'}</div>
       <div class="name">
-        <a href="${c.link}" target="_blank" rel="noopener">${c.name}</a>
+        <a href="${c.link}" target="_blank" rel="noopener noreferrer">${c.name}</a>
         <span class="sym">${c.symbol}</span>
       </div>
       <div>${fmtUSD(c.price)}</div>
@@ -297,11 +297,21 @@ async function cpTickers(){
 
 const CAP_MAX_MICRO = 50_000_000;
 
+/* ======= more robust microcaps loader ======= */
 async function loadMicrocaps(){
+  // Try CoinGecko: smallest caps first; pull up to 4 pages (1000 rows).
   try{
-    const all = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 2);
-    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+    const pagesToTry = 4;
+    const all = await cgMarkets({ order:'market_cap_asc', per_page:250 }, pagesToTry);
+    let micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
     dlog('Microcaps from CG:', micro.length);
+    // If we still don’t have enough (there are many null caps in ASC), fallback to CP.
+    if (micro.length < 10) {
+      dlog('Microcaps: CG yielded few rows; switching to CoinPaprika fallback…');
+      const cpAll = await cpTickers();
+      micro = cpAll.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+      dlog('Microcaps from CP:', micro.length);
+    }
     return micro;
   } catch(e){
     dlog('CG micro failed ->', e.message||e);
@@ -311,6 +321,7 @@ async function loadMicrocaps(){
     return micro;
   }
 }
+
 async function loadMajors(){
   try{
     const top = await cgMarkets({ order:'market_cap_desc', per_page:100 }, 1);
@@ -342,3 +353,4 @@ setInterval(loadAll, 60_000);
 </script>
 </body>
 </html>
+``
