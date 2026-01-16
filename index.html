@@ -4,18 +4,22 @@
 <meta charset="UTF-8" />
 <title>Token Movers — Microcaps & Majors</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Daily token movers: top gainers and losers among tiny microcaps (<$50M) and major players (Top‑100). Includes methodology and data source notes." />
 <style>
   :root {
     --bg:#0b0f14; --card:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
-    --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620;
+    --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620; --yellow:#fbbf24;
   }
-  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:20px; }
-  h1 { text-align:center; margin:0 0 4px; }
+  * { box-sizing: border-box; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:22px; }
+  h1 { text-align:center; margin:0 0 6px; }
   .meta { text-align:center; color:var(--muted); margin-bottom:12px; }
   .topbar { max-width:1100px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; }
   .topbar input { background:#0f1620; color:#e5e7eb; border:1px solid #1f2937; border-radius:8px; padding:6px 10px; min-width:260px; }
   .topbar button { background:#1f2937; color:var(--text); border:1px solid var(--border); padding:6px 10px; border-radius:8px; cursor:pointer; }
   .topbar button:hover { background:var(--accent); }
+  .banner { max-width:1100px; margin:0 auto 14px; background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:#d1d5db; }
+  .banner p { margin:6px 0; }
   .tabs { max-width:1100px; margin:0 auto 10px; display:flex; gap:8px; }
   .tab { background:var(--tab); border:1px solid var(--border); color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
   .tab.active { background:#1a2230; color:#fff; border-color:#2b3a51; }
@@ -25,15 +29,26 @@
   .card { background:var(--card); border:1px solid var(--border); padding:12px; border-radius:12px; }
   .card h3 { margin:4px 0 10px; }
   .list { display:grid; gap:6px; }
-  .row { display:grid; grid-template-columns:24px 1fr 90px 120px 90px; gap:8px; align-items:center; padding:8px; border:1px solid #1f2937; border-radius:8px; background:#0f1620; }
+  .row { display:grid; grid-template-columns:24px 1fr 100px 120px 90px; gap:8px; align-items:center; padding:8px; border:1px solid #1f2937; border-radius:8px; background:#0f1620; }
+  .row img { width:24px; height:24px; border-radius:50%; display:block; }
   .row .name { display:flex; gap:6px; align-items:baseline; }
+  .row .name a { color:#e5e7eb; text-decoration:none; }
+  .row .name a:hover { text-decoration:underline; }
   .row .name .sym { color:#9ca3af; font-size:.9rem; }
-  .chg { font-weight:600; }
+  .chg { font-weight:600; text-align:right; }
   .pos { color:var(--green); } .neg { color:var(--red); }
   .toolbar { display:flex; gap:8px; margin-top:6px; align-items:center; }
   .search { flex:1; }
+  details { background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:10px 12px; max-width:1100px; margin:14px auto; }
+  details summary { cursor:pointer; font-weight:600; }
+  .muted { color:var(--muted); }
+  .refs a { color:#93c5fd; text-decoration:underline; }
   details.debug { max-width:1100px; margin:14px auto; background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:8px 12px; }
   .log { white-space:pre-wrap; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; color:#cbd5e1; max-height:220px; overflow:auto; background:#0b1119; border:1px solid #1f2937; border-radius:8px; padding:8px; }
+  @media (max-width: 760px) {
+    .two { grid-template-columns:1fr; }
+    .row { grid-template-columns:24px 1fr 90px 100px 80px; }
+  }
 </style>
 </head>
 <body>
@@ -43,14 +58,30 @@
     <button id="refreshBtn">Refresh</button>
   </div>
 
+  <!-- WHAT YOU’RE SEEING -->
+  <div class="banner" id="about">
+    <h2 style="margin:0 0 6px">What you’re seeing</h2>
+    <p>
+      This page shows the day’s <strong>top gainers and losers</strong> by <em>24‑hour price change (%)</em> for two groups:
+      <strong>Tiny Microcaps</strong> (market cap &lt; <strong>$50M</strong>) and <strong>Major Players</strong> (Top‑100 by market cap).
+      Use the search box to filter by name or symbol. Data refreshes every minute.
+    </p>
+    <p class="muted">
+      Numbers are sourced from public market data aggregators; thin‑liquidity microcaps can be volatile or noisy.
+      Always check liquidity and listings before acting.
+    </p>
+  </div>
+
+  <!-- Controls -->
   <div class="topbar">
     <input id="search" class="search" type="text" placeholder="Search name or symbol…" />
     <input id="cgKey" type="password" placeholder="(Optional) CoinGecko Demo API key" />
     <button id="saveKey">Save key</button>
     <button id="clearKey">Clear key</button>
-    <span id="keyStatus" style="color:#fbbf24;"></span>
+    <span id="keyStatus" style="color:var(--yellow);"></span>
   </div>
 
+  <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" data-tab="micro">Microcaps (&lt;$50M)</div>
     <div class="tab" data-tab="majors">Major Players (Top‑100)</div>
@@ -58,7 +89,6 @@
 
   <!-- Microcaps Panel -->
   <div id="panel-micro" class="panel active">
-    <div class="toolbar"><h2 style="margin:0">Microcaps (&lt;$50M)</h2></div>
     <div class="two">
       <div class="card">
         <h3>Top 15 Gainers (24h)</h3>
@@ -73,7 +103,6 @@
 
   <!-- Majors Panel -->
   <div id="panel-majors" class="panel">
-    <div class="toolbar"><h2 style="margin:0">Major Players (Top‑100)</h2></div>
     <div class="two">
       <div class="card">
         <h3>Top 15 Gainers (24h)</h3>
@@ -86,16 +115,64 @@
     </div>
   </div>
 
+  <!-- Methodology & Data Sources -->
+  <details open>
+    <summary>📚 Methodology & Data Sources</summary>
+    <div style="margin-top:8px; line-height:1.5">
+      <ol>
+        <li>
+          <strong>Universe & segmentation.</strong>
+          <ul>
+            <li><em>Tiny Microcaps</em>: tokens with reported <strong>market cap &lt; $50,000,000</strong>.</li>
+            <li><em>Major Players</em>: the <strong>Top‑100</strong> tokens by market cap.</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Primary data source (CoinGecko).</strong>
+          We pull paged market snapshots from CoinGecko’s
+          <code>/api/v3/coins/markets</code> endpoint (price, market cap, 24h % change, logo).
+          Optional Demo API key improves rate‑limit stability (about 30 calls/min) — passed via the
+          <code>x-cg-demo-api-key</code> header. <span class="refs">
+          Sources:
+          <a href="https://docs.coingecko.com/v3.0.1/reference/coins-markets" target="_blank" rel="noopener">CoinGecko Coins/Markets</a>,
+          <a href="https://docs.coingecko.com/docs/common-errors-rate-limit" target="_blank" rel="noopener">Rate limits</a></span>.
+        </li>
+        <li>
+          <strong>Fallback (CoinPaprika).</strong>
+          If CoinGecko is rate‑limited/unavailable, we query CoinPaprika
+          <code>/v1/tickers?quotes=USD</code> and compute the same lists client‑side.
+          <span class="refs">
+          Source: <a href="https://docs.coinpaprika.com/" target="_blank" rel="noopener">CoinPaprika API</a></span>.
+        </li>
+        <li>
+          <strong>Computation.</strong>
+          We filter out entries with missing cap or non‑positive price, de‑duplicate by id,
+          compute gainers/losers by sorting on <em>24h % change</em>, and show the top 15 in each list.
+        </li>
+        <li>
+          <strong>Refresh & limits.</strong>
+          Auto‑refresh is set to <strong>60 seconds</strong> to respect public API limits. Your Demo key (if supplied) is stored
+          only in your browser (LocalStorage), not in this site or repo.
+        </li>
+        <li>
+          <strong>Known caveats.</strong>
+          Small‑cap data can be noisy (low liquidity, exchange coverage). Values are snapshots and may differ from
+          exchange UIs. Always cross‑check before acting.
+        </li>
+      </ol>
+    </div>
+  </details>
+
   <details class="debug">
-    <summary>Debug (optional)</summary>
+    <summary>🛠 Debug (optional)</summary>
     <div class="log" id="debugLog">No logs yet.</div>
     <div style="margin-top:6px;color:#9ca3af;font-size:12px">
-      Primary data: CoinGecko <code>/api/v3/coins/markets</code> (Demo key optional, 30 rpm). Fallback: CoinPaprika <code>/v1/tickers?quotes=USD</code>.
+      Primary: CoinGecko <code>/coins/markets</code> (Demo key optional). Fallback: CoinPaprika <code>/v1/tickers?quotes=USD</code>.
     </div>
   </details>
 
 <script>
-/* ======= small debug logger ======= */
+/* ======= debug logger ======= */
 const dlogEl = document.getElementById('debugLog');
 function dlog(...a){ dlogEl.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; dlogEl.scrollTop = dlogEl.scrollHeight; }
 
@@ -115,11 +192,11 @@ const keyInput = document.getElementById('cgKey');
 const keyStatus = document.getElementById('keyStatus');
 function getCgKey(){ return (localStorage.getItem(LS_KEY)||'').trim(); }
 function maskKey(k){ return k? k.slice(0,4)+'•••'+k.slice(-2):'';}
-function updateKeyUI(){ const k=getCgKey(); keyStatus.textContent = k? `Key saved (${maskKey(k)})` : 'No CoinGecko key (fallback enabled)'; }
+function updateKeyUI(){ const k=getCgKey(); keyStatus.textContent = k? `CoinGecko key saved (${maskKey(k)})` : 'No CoinGecko key (fallback enabled)'; }
 (function captureKey(){
   const p = new URLSearchParams(location.search);
   const ck = (p.get('ck')||'').trim();
-  if(ck && ck.length>10){ localStorage.setItem(LS_KEY, ck); history.replaceState({},'',location.pathname); }
+  if(ck && ck.length>10){ localStorage.setItem(LS_KEY, ck); history.replaceState({},'',location.pathname); dlog('Captured CG key from URL param:', maskKey(ck)); }
 })();
 updateKeyUI();
 document.getElementById('saveKey').onclick=()=>{ const k=keyInput.value.trim(); if(!k){alert('Paste your CoinGecko Demo key first'); return;} localStorage.setItem(LS_KEY,k); keyInput.value=''; updateKeyUI(); loadAll(); };
@@ -133,8 +210,8 @@ searchInput.addEventListener('input', ()=> renderAll(lastData));
 /* ======= helpers ======= */
 function fmtUSD(x){ if(x==null) return '—'; if(x>=1) return '$'+x.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+x.toFixed(6); }
 function fmtCap(x){ if(!x&&x!==0) return '—'; if(x>=1e9) return '$'+(x/1e9).toFixed(2)+'B'; if(x>=1e6) return '$'+(x/1e6).toFixed(2)+'M'; return '$'+Math.round(x).toLocaleString(); }
-function byChangeDesc(a,b){ return (b.pct24||-Infinity)-(a.pct24||-Infinity); }
-function byChangeAsc(a,b){ return (a.pct24||Infinity)-(b.pct24||Infinity); }
+function byChangeDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
+function byChangeAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
 function normalizeCgCoin(c){
   return {
     id:c.id, name:c.name, symbol:(c.symbol||'').toUpperCase(),
@@ -151,91 +228,15 @@ function normalizeCpCoin(c){
   };
 }
 
-/* ======= data sources ======= */
-// CoinGecko: /coins/markets (paged). Optional Demo key via header x-cg-demo-api-key
-async function cgMarkets(params, pages=1){
-  const key=getCgKey();
-  const base='https://api.coingecko.com/api/v3/coins/markets';
-  const headers = key? {'x-cg-demo-api-key': key} : {};
-  let all=[];
-  for(let p=1;p<=pages;p++){
-    const q = new URLSearchParams({
-      vs_currency:'usd',
-      order: params.order||'market_cap_desc',
-      per_page: String(params.per_page||250),
-      page: String(p),
-      price_change_percentage:'24h',
-      sparkline:'false'
-    });
-    if(params.category) q.set('category', params.category);
-    const url=`${base}?${q.toString()}`;
-    dlog('CG:', url, key?'(keyed)':'(keyless)');
-    const r = await fetch(url, {headers});
-    if(!r.ok) throw new Error(`CG HTTP ${r.status}`);
-    const j = await r.json();
-    all = all.concat(j.map(normalizeCgCoin));
-    // slight delay to be kind to rate limits
-    await new Promise(res=>setTimeout(res, 150));
-  }
-  return all;
-}
-
-// CoinPaprika fallback: /v1/tickers?quotes=USD (returns many; we filter client‑side)
-async function cpTickers(){
-  const url='https://api.coinpaprika.com/v1/tickers?quotes=USD';
-  dlog('CP:', url);
-  const r = await fetch(url);
-  if(!r.ok) throw new Error(`CP HTTP ${r.status}`);
-  const j = await r.json();
-  return j.map(normalizeCpCoin);
-}
-
-/* ======= fetch microcaps & majors with fallback ======= */
-const CAP_MAX_MICRO = 50_000_000; // $50M
-
-async function loadMicrocaps(){
-  // Try CoinGecko first: sort ascending cap to capture small caps fast
-  try{
-    // Pull 2 pages (500 rows) of smallest market caps
-    const all = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 2);
-    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
-    dlog('Microcaps from CG:', micro.length);
-    return micro;
-  } catch(e){
-    dlog('CG micro failed ->', e.message||e);
-    // Fallback to CoinPaprika: filter by cap
-    const all = await cpTickers();
-    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
-    dlog('Microcaps from CP:', micro.length);
-    return micro;
-  }
-}
-
-async function loadMajors(){
-  try{
-    // Top 100 by market cap from CG
-    const top = await cgMarkets({ order:'market_cap_desc', per_page:100 }, 1);
-    dlog('Majors from CG:', top.length);
-    return top;
-  } catch(e){
-    dlog('CG majors failed ->', e.message||e);
-    const all = await cpTickers();
-    const sorted = all.filter(c=>c.cap).sort((a,b)=>b.cap-a.cap).slice(0,100);
-    dlog('Majors from CP:', sorted.length);
-    return sorted;
-  }
-}
-
-/* ======= render ======= */
 function renderList(rootId, rows){
   const q = (searchInput.value||'').trim().toLowerCase();
   const filtered = q? rows.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)) : rows;
   const root = document.getElementById(rootId);
   root.innerHTML = filtered.map(c => `
     <div class="row">
-      <div>${c.img ? `<img src="${c.img}" width="24" height="24" style="border-radius:50%"/>` : '🪙'}</div>
+      <div>${c.img ? `<img src="${c.img}" alt="">` : '🪙'}</div>
       <div class="name">
-        <a href="${c.link}" target="_blank" rel="noopener" style="color:#e2e8f0;text-decoration:none">${c.name}</a>
+        <a href="${c.link}" target="_blank" rel="noopener">${c.name}</a>
         <span class="sym">${c.symbol}</span>
       </div>
       <div>${fmtUSD(c.price)}</div>
@@ -253,7 +254,77 @@ function renderAll(data){
   renderList('majors-losers',  [...data.majors].sort(byChangeAsc).slice(0,15));
 }
 
-/* ======= load + refresh ======= */
+/* ======= fetch utilities & sources ======= */
+async function fetchWithTimeout(url, options={}, timeoutMs=8000){
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { ...options, signal: ctrl.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r;
+  } finally { clearTimeout(id); }
+}
+async function cgMarkets(params, pages=1){
+  const key=getCgKey();
+  const base='https://api.coingecko.com/api/v3/coins/markets';
+  const headers = key? {'x-cg-demo-api-key': key} : {};
+  let all=[];
+  for(let p=1;p<=pages;p++){
+    const q = new URLSearchParams({
+      vs_currency:'usd',
+      order: params.order||'market_cap_desc',
+      per_page: String(params.per_page||250),
+      page: String(p),
+      price_change_percentage:'24h',
+      sparkline:'false'
+    });
+    const url=`${base}?${q.toString()}`;
+    dlog('CG GET', url, key?'(keyed)':'(keyless)');
+    const r = await fetchWithTimeout(url, {headers}, 8000);
+    const j = await r.json();
+    all = all.concat(j.map(normalizeCgCoin));
+    await new Promise(res=>setTimeout(res, 150)); // be gentle
+  }
+  return all;
+}
+async function cpTickers(){
+  const url='https://api.coinpaprika.com/v1/tickers?quotes=USD';
+  dlog('CP GET', url);
+  const r = await fetchWithTimeout(url, {}, 10000);
+  const j = await r.json();
+  return j.map(normalizeCpCoin);
+}
+
+const CAP_MAX_MICRO = 50_000_000;
+
+async function loadMicrocaps(){
+  try{
+    const all = await cgMarkets({ order:'market_cap_asc', per_page:250 }, 2);
+    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+    dlog('Microcaps from CG:', micro.length);
+    return micro;
+  } catch(e){
+    dlog('CG micro failed ->', e.message||e);
+    const all = await cpTickers();
+    const micro = all.filter(c=> c.cap && c.cap < CAP_MAX_MICRO && c.price>0);
+    dlog('Microcaps from CP:', micro.length);
+    return micro;
+  }
+}
+async function loadMajors(){
+  try{
+    const top = await cgMarkets({ order:'market_cap_desc', per_page:100 }, 1);
+    dlog('Majors from CG:', top.length);
+    return top;
+  } catch(e){
+    dlog('CG majors failed ->', e.message||e);
+    const all = await cpTickers();
+    const sorted = all.filter(c=>c.cap).sort((a,b)=>b.cap-a.cap).slice(0,100);
+    dlog('Majors from CP:', sorted.length);
+    return sorted;
+  }
+}
+
 async function loadAll(){
   document.getElementById('updated').textContent = 'Loading…';
   try{
@@ -266,7 +337,6 @@ async function loadAll(){
   }
 }
 document.getElementById('refreshBtn').onclick = loadAll;
-
 loadAll();
 setInterval(loadAll, 60_000);
 </script>
