@@ -5,7 +5,7 @@
 <meta charset="UTF-8" />
 <title>Token Movers — Microcaps & Majors</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- v2026-01-16E: Force spark=1 + fallback em-dash in 7d column; Token-first + URL column -->
+<!-- v2026-01-16F: 5 columns (Token, Price, Cap, 24h %, 7d). Sparkline fallback dash if missing. -->
 <meta name="description" content="Daily token movers: gainers/losers across microcaps (<$50M) & majors (Top‑100), with categories, 7‑day sparklines, and column headers. Served via a Cloudflare Worker." />
 <style>
   :root {
@@ -30,34 +30,27 @@
   .chip.ok{background:var(--chip-ok);border-color:#1d6830;color:#d1fae5}
   .list{display:grid;gap:6px;}
 
-  /* Data rows: 6 columns = Token | Price | Market Cap | 24h % | 7d | URL */
+  /* 5 columns = Token | Price | Market Cap | 24h % | 7d */
   .row{
     display:grid;
-    grid-template-columns: 1.35fr 100px 120px 90px 90px 1fr;
+    grid-template-columns: 1fr 100px 120px 90px 90px;
     gap:8px;align-items:center;padding:8px;
     border:1px solid #1f2937;border-radius:8px;background:#0f1620;
   }
-  /* Token cell */
   .tokenCell{display:flex;align-items:center;gap:8px;min-width:0}
   .tokenCell a{color:#e5e7eb;text-decoration:none;display:inline-flex;align-items:center;gap:8px;min-width:0}
   .tokenCell a:hover{text-decoration:underline}
   .tokenCell img{width:20px;height:20px;border-radius:50%;}
-  .nameText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48vw}
+  .nameText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
   .sym{color:#9ca3af;font-size:.9rem}
-
   .chg{font-weight:600;text-align:right}
   .sparkCell{display:flex;align-items:center;justify-content:flex-start;color:var(--muted)}
   canvas.spark{width:90px;height:24px}
 
-  /* URL column */
-  .urlCell{display:flex;align-items:center;gap:8px;min-width:0;justify-content:flex-start}
-  .urlCell a{color:#93c5fd;text-decoration:underline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}
-  .ext{opacity:.8}
-
-  /* Column headers: align to .row grid (6 columns) */
+  /* Headers (align to 5 columns) */
   .hdrrow{
     display:grid;
-    grid-template-columns: 1.35fr 100px 120px 90px 90px 1fr;
+    grid-template-columns: 1fr 100px 120px 90px 90px;
     gap:8px;align-items:center;
     padding:6px 8px;margin:4px 0 8px 0;
     color:#cbd5e1;font-size:12px;text-transform:uppercase;letter-spacing:.03em;
@@ -72,23 +65,17 @@
   .footer a{color:#93c5fd;text-decoration:underline}
 
   .debug{max-width:1100px;margin:14px auto;background:#0f1620;border:1px solid #1f2937;border-radius:10px;padding:8px 12px;}
-  .log{white-space:pre-wrap;font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px;color:#cbd5e1;max-height:220px;overflow:auto;background:#0b1119;border:1px solid #1f2937;border-radius:8px;padding:8px;}
+  .log{white-space:pre-wrap;font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px;color:#cbd5e1;max-height:220px;overflow:auto;background:#0b1119;border:1f2937;border:1px solid #1f2937;border-radius:8px;padding:8px;}
 
-  @media (max-width: 1120px){
-    .nameText{max-width:40vw}
-    .urlCell a{max-width:32vw}
-  }
   @media (max-width: 900px){
-    .row   { grid-template-columns: 1.35fr 100px 110px 90px 70px 1fr; }
-    .hdrrow{ grid-template-columns: 1.35fr 100px 110px 90px 70px 1fr; }
-    .urlCell a{max-width:28vw}
+    .row   { grid-template-columns: 1fr 100px 110px 90px 70px; }
+    .hdrrow{ grid-template-columns: 1fr 100px 110px 90px 70px; }
   }
   @media (max-width: 760px){
-    .row   { grid-template-columns: 1.35fr 90px 100px 80px 60px 1fr; }
-    .hdrrow{ grid-template-columns: 1.35fr 90px 100px 80px 60px 1fr; }
+    .row   { grid-template-columns: 1fr 90px 100px 80px 60px; }
+    .hdrrow{ grid-template-columns: 1fr 90px 100px 80px 60px; }
     .two{grid-template-columns:1fr}
-    .nameText{max-width:52vw}
-    .urlCell a{max-width:36vw}
+    .nameText{max-width:60vw}
   }
 </style>
 </head>
@@ -121,15 +108,15 @@
     <div class="two">
       <div class="card">
         <h3>Top 15 Gainers (24h) <span id="micro-src1" class="chip">loading…</span></h3>
-        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d, url">
-          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div><div>URL</div>
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
         <div id="micro-gainers" class="list"></div>
       </div>
       <div class="card">
         <h3>Top 15 Losers (24h) <span id="micro-src2" class="chip">loading…</span></h3>
-        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d, url">
-          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div><div>URL</div>
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
         <div id="micro-losers" class="list"></div>
       </div>
@@ -141,15 +128,15 @@
     <div class="two">
       <div class="card">
         <h3>Top 15 Gainers (24h) <span id="majors-src1" class="chip">loading…</span></h3>
-        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d, url">
-          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div><div>URL</div>
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
         <div id="majors-gainers" class="list"></div>
       </div>
       <div class="card">
         <h3>Top 15 Losers (24h) <span id="majors-src2" class="chip">loading…</span></h3>
-        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d, url">
-          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div><div>URL</div>
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
         <div id="majors-losers" class="list"></div>
       </div>
@@ -161,8 +148,8 @@
     <div class="muted" style="margin-top:8px;line-height:1.5">
       <ul>
         <li><strong>Segments:</strong> Microcaps = cap &lt; $50M; Majors = Top‑100 by market cap.</li>
-        <li><strong>Category & Sparklines:</strong> Category filter and 7‑day series come from CoinGecko’s <code>/coins/markets</code> when requested via the Worker (<code>?category=…&spark=1</code>).</li>
-        <li><strong>Refresh & cache:</strong> Page refreshes every 60s; the Cloudflare Worker caches responses ~60s at the edge.</li>
+        <li><strong>Category & Sparklines:</strong> Provided via your Worker from CoinGecko where available (7‑day series requested by default).</li>
+        <li><strong>Refresh & cache:</strong> Page refreshes every 60s; the Worker caches responses ~60s at the edge.</li>
       </ul>
     </div>
   </details>
@@ -207,19 +194,9 @@ function fmtCap(x){ if(x==null) return '—'; const n=Number(x); if(n>=1e9) retu
 function byDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
 function byAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
 function esc(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function attr(s){ return esc(s); } // simple attribute escape
 
-/* Short, human-friendly URL label from href */
-function prettyURLLabel(href){
-  try{
-    const u=new URL(href);
-    const host=u.hostname.replace(/^www\./,'');
-    let path=u.pathname.replace(/\/$/,'');
-    if(path.length>24) path=path.slice(0,21)+'…';
-    return host + (path && path!=='/' ? path : '');
-  }catch(_){ return href; }
-}
-
-/* ====== Tiny sparkline (90x24) ====== */
+/* ====== Sparkline drawing ====== */
 function drawSpark(canvas, arr, isUp){
   if(!canvas || !Array.isArray(arr) || arr.length<8){ return; }
   const w=canvas.width=90, h=canvas.height=24, min=Math.min(...arr), max=Math.max(...arr), span=(max-min)||1;
@@ -229,49 +206,29 @@ function drawSpark(canvas, arr, isUp){
   ctx.stroke();
 }
 
-/* ====== Row rendering (Token first; URL separate) ====== */
+/* ====== Row rendering (5 columns) ====== */
 function rowHTML(c){
   const up=(c.pct24??0)>=0;
-  const img = c.img ? `${esc(c.img)}` : '<span>🪙</span>';
-
-  // Extract href from c.link (already an <a ...>..</a> string)
   const hrefMatch = (c.link||'').match(/href="([^"]+)"/i);
   const href = hrefMatch ? hrefMatch[1] : '#';
-  const shortLabel = prettyURLLabel(href);
-
-  // 7d content: canvas if spark exists, otherwise em-dash
+  const imgTag = c.img ? `<img src="${attr(c.img)}" alt="">` : '<span>🪙</span>';
   const sparkCell = Array.isArray(c.spark)
     ? '<canvas class="spark" width="90" height="24"></canvas>'
     : '<div class="sparkCell">—</div>';
 
   return `
     <div class="row">
-      <!-- Token column (clickable): icon + name + symbol -->
       <div class="tokenCell">
-        ${esc(href)}
-          ${img}
+        <a href="${attr(href)}" target="_blank" rel="noopener">
+          ${imgTag}
           <span class="nameText">${esc(c.name)}</span>
           <span class="sym">${esc(c.symbol)}</span>
         </a>
       </div>
-
-      <!-- Price -->
       <div>${fmtUSD(c.price)}</div>
-
-      <!-- Market Cap -->
       <div>${fmtCap(c.cap)}</div>
-
-      <!-- 24h % -->
       <div class="chg ${up?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
-
-      <!-- 7d sparkline (canvas or fallback em-dash) -->
       ${sparkCell}
-
-      <!-- URL column -->
-      <div class="urlCell">
-        ${esc(href)}${esc(shortLabel)}</a>
-        <span class="ext">🔗</span>
-      </div>
     </div>`;
 }
 
@@ -282,8 +239,7 @@ function renderList(id, rows){
   const root=document.getElementById(id);
   root.innerHTML=f.map(rowHTML).join('');
 
-  // draw sparklines where present
-  const canvases=root.querySelectorAll('canvas.spark');
+  const canvases = root.querySelectorAll('canvas.spark');
   let k=0;
   f.forEach((c)=>{
     if(Array.isArray(c.spark)){
@@ -299,15 +255,15 @@ function renderAll(d){
   renderList('majors-losers',  d.majorsLosers  || [...d.majors].sort(byAsc).slice(0,15));
 }
 
-/* ====== Fetch from Worker (now always requesting spark=1) ====== */
+/* ====== Fetch from Worker (spark requested implicitly) ====== */
 async function initLoad(){
   document.getElementById('updated').textContent='Loading…';
   const cat = (catSelect.value || 'all');
-  const params = `category=${encodeURIComponent(cat)}&spark=1`; // <— always ask for 7d series
+  // The Worker now *always* tries to include sparklines. We just send category.
   try{
     const [maj, mic] = await Promise.all([
-      fetch(`${WORKER_BASE}/movers/majors?${params}`).then(r=>r.json()),
-      fetch(`${WORKER_BASE}/movers/micro?${params}`).then(r=>r.json())
+      fetch(`${WORKER_BASE}/movers/majors?category=${encodeURIComponent(cat)}`).then(r=>r.json()),
+      fetch(`${WORKER_BASE}/movers/micro?category=${encodeURIComponent(cat)}`).then(r=>r.json())
     ]);
 
     const cache = {
