@@ -5,7 +5,7 @@
 <meta charset="UTF-8" />
 <title>Token Movers — Microcaps & Majors</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- v2026-01-16: category filter + 7d sparklines + footer + column headers -->
+<!-- v2026-01-16B: Token column shows icon + name (no raw URL) -->
 <meta name="description" content="Daily token movers: gainers/losers across microcaps (<$50M) & majors (Top‑100), with categories, 7‑day sparklines, and column headers. Served via a Cloudflare Worker." />
 <style>
   :root {
@@ -30,24 +30,26 @@
   .chip.ok{background:var(--chip-ok);border-color:#1d6830;color:#d1fae5}
   .list{display:grid;gap:6px;}
 
-  /* Data rows: 6 columns = icon | token | price | market cap | 24h % | 7d spark */
+  /* Data rows: 5 columns = Token (icon+name) | Price | Market Cap | 24h % | 7d spark */
   .row{
     display:grid;
-    grid-template-columns:24px 1fr 100px 120px 90px 90px;
+    grid-template-columns: 1fr 100px 120px 90px 90px;
     gap:8px;align-items:center;padding:8px;
     border:1px solid #1f2937;border-radius:8px;background:#0f1620;
   }
-  .row img{width:24px;height:24px;border-radius:50%;}
-  .row .name{display:flex;gap:6px;align-items:baseline}
-  .row .name a{color:#e5e7eb;text-decoration:none}.row .name a:hover{text-decoration:underline}
-  .row .name .sym{color:#9ca3af;font-size:.9rem}
+  .tokenCell{display:flex;align-items:center;gap:8px;min-width:0}
+  .tokenCell img{width:20px;height:20px;border-radius:50%;}
+  .tokenCell a{color:#e5e7eb;text-decoration:none;display:inline-flex;align-items:baseline;gap:6px;min-width:0}
+  .tokenCell a:hover{text-decoration:underline}
+  .nameText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
+  .sym{color:#9ca3af;font-size:.9rem}
   .chg{font-weight:600;text-align:right}
   canvas.spark{width:90px;height:24px}
 
-  /* Column headers: align exactly to .row grid */
+  /* Column headers: align exactly to .row grid (5 columns) */
   .hdrrow{
     display:grid;
-    grid-template-columns:24px 1fr 100px 120px 90px 90px;
+    grid-template-columns: 1fr 100px 120px 90px 90px;
     gap:8px;align-items:center;
     padding:6px 8px;margin:4px 0 8px 0;
     color:#cbd5e1;font-size:12px;text-transform:uppercase;letter-spacing:.03em;
@@ -65,13 +67,14 @@
   .log{white-space:pre-wrap;font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px;color:#cbd5e1;max-height:220px;overflow:auto;background:#0b1119;border:1px solid #1f2937;border-radius:8px;padding:8px;}
 
   @media (max-width: 900px){
-    .row   { grid-template-columns:24px 1fr 100px 110px 90px 70px; }
-    .hdrrow{ grid-template-columns:24px 1fr 100px 110px 90px 70px; }
+    .row   { grid-template-columns: 1fr 100px 110px 90px 70px; }
+    .hdrrow{ grid-template-columns: 1fr 100px 110px 90px 70px; }
   }
   @media (max-width: 760px){
-    .row   { grid-template-columns:24px 1fr 90px 100px 80px 60px; }
-    .hdrrow{ grid-template-columns:24px 1fr 90px 100px 80px 60px; }
+    .row   { grid-template-columns: 1fr 90px 100px 80px 60px; }
+    .hdrrow{ grid-template-columns: 1fr 90px 100px 80px 60px; }
     .two{grid-template-columns:1fr}
+    .nameText{max-width:60vw}
   }
 </style>
 </head>
@@ -105,9 +108,9 @@
       <div class="card">
         <h3>Top 15 Gainers (24h) <span id="micro-src1" class="chip">loading…</span></h3>
 
-        <!-- Column headers -->
-        <div class="hdrrow" role="row" aria-label="Columns: icon, token, price, market cap, 24h change, 7d">
-          <div aria-hidden="true"></div><div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
+        <!-- Column headers (5 columns) -->
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
 
         <div id="micro-gainers" class="list"></div>
@@ -115,9 +118,9 @@
       <div class="card">
         <h3>Top 15 Losers (24h) <span id="micro-src2" class="chip">loading…</span></h3>
 
-        <!-- Column headers -->
-        <div class="hdrrow" role="row" aria-label="Columns: icon, token, price, market cap, 24h change, 7d">
-          <div aria-hidden="true"></div><div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
+        <!-- Column headers (5 columns) -->
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
 
         <div id="micro-losers" class="list"></div>
@@ -131,9 +134,9 @@
       <div class="card">
         <h3>Top 15 Gainers (24h) <span id="majors-src1" class="chip">loading…</span></h3>
 
-        <!-- Column headers -->
-        <div class="hdrrow" role="row" aria-label="Columns: icon, token, price, market cap, 24h change, 7d">
-          <div aria-hidden="true"></div><div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
+        <!-- Column headers (5 columns) -->
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
 
         <div id="majors-gainers" class="list"></div>
@@ -141,9 +144,9 @@
       <div class="card">
         <h3>Top 15 Losers (24h) <span id="majors-src2" class="chip">loading…</span></h3>
 
-        <!-- Column headers -->
-        <div class="hdrrow" role="row" aria-label="Columns: icon, token, price, market cap, 24h change, 7d">
-          <div aria-hidden="true"></div><div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
+        <!-- Column headers (5 columns) -->
+        <div class="hdrrow" role="row" aria-label="Columns: token, price, market cap, 24h change, 7d">
+          <div>Token</div><div>Price</div><div>Market Cap</div><div>24h %</div><div>7d</div>
         </div>
 
         <div id="majors-losers" class="list"></div>
@@ -217,17 +220,23 @@ function drawSpark(canvas, arr, isUp){
   ctx.stroke();
 }
 
-/* ====== Row rendering ====== */
+/* ====== Row rendering (Token = icon + name + symbol) ====== */
 function rowHTML(c){
   const up=(c.pct24??0)>=0;
+  const img = c.img ? `${esc(c.img)}` : '<span>🪙</span>';
   return `
     <div class="row">
-      <div>${c.img ? `${esc(c.img)}` : '🪙'}</div>
-      <div class="name">${esc(c.link)}${esc(c.name)}</a> <span class="sym">${esc(c.symbol)}</span></div>
+      <div class="tokenCell">
+        ${esc(c.link)}
+          ${img}
+          <span class="nameText">${esc(c.name)}</span>
+          <span class="sym">${esc(c.symbol)}</span>
+        </a>
+      </div>
       <div>${fmtUSD(c.price)}</div>
       <div>${fmtCap(c.cap)}</div>
       <div class="chg ${up?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
-      <canvas class="spark" width="90" height="24" data-has="${Array.isArray(c.spark)?1:0}"></canvas>
+      <canvas class="spark" width="90" height="24"></canvas>
     </div>`;
 }
 function renderList(id, rows){
@@ -235,6 +244,7 @@ function renderList(id, rows){
   const f=q? rows.filter(x=>x.name.toLowerCase().includes(q)||x.symbol.toLowerCase().includes(q)) : rows;
   const root=document.getElementById(id);
   root.innerHTML=f.map(rowHTML).join('');
+
   // draw sparklines
   const cvs=root.querySelectorAll('canvas.spark');
   f.forEach((c,i)=>{ if(Array.isArray(c.spark)) drawSpark(cvs[i], c.spark, (c.pct24??0)>=0); });
