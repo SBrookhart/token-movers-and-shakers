@@ -5,45 +5,38 @@
 <meta charset="UTF-8" />
 <title>Token Movers — Microcaps & Majors</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Daily token movers: top gainers and losers among tiny microcaps (<$50M) and major players (Top‑100). Served via Worker for CORS-safe, cached results." />
+<meta name="description" content="Daily token movers: gainers/losers across microcaps (<$50M) & majors (Top‑100), with categories and 7‑day sparklines. Served via a Cloudflare Worker." />
 <style>
-  :root {
-    --bg:#0b0f14; --card:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
-    --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620; --yellow:#fbbf24;
-    --chip:#0e1724; --chip-ok:#113e22; --chip-err:#5a1313;
-  }
-  * { box-sizing:border-box }
-  body { background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:22px; }
-  h1 { text-align:center; margin:0 0 6px; }
-  .meta { text-align:center; color:var(--muted); margin-bottom:12px; }
-  .topbar { max-width:1100px; margin:0 auto 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; }
-  .topbar input { background:#0f1620; color:#e5e7eb; border:1px solid #1f2937; border-radius:8px; padding:6px 10px; min-width:260px; }
-  .banner { max-width:1100px; margin:0 auto 14px; background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:10px 12px; color:#d1d5db; }
-  .tabs { max-width:1100px; margin:0 auto 10px; display:flex; gap:8px; }
-  .tab { background:var(--tab); border:1px solid var(--border); color:#cbd5e1; padding:8px 12px; border-radius:10px; cursor:pointer; }
-  .tab.active { background:#1a2230; color:#fff; border-color:#2b3a51; }
-  .panel { display:none; } .panel.active { display:block; }
-  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
-  .card { background:var(--card); border:1px solid var(--border); padding:12px; border-radius:12px; }
-  .card h3 { margin:4px 0 10px; display:flex; align-items:center; gap:10px; }
-  .chip { font-size:.75rem; background:var(--chip); border:1px solid #22324a; color:#cbd5e1; padding:2px 8px; border-radius:999px; }
-  .chip.ok{ background:var(--chip-ok); border-color:#1d6830; color:#d1fae5 }
-  .chip.err{ background:var(--chip-err); border-color:#8b1a1a; color:#fecaca }
-  .list { display:grid; gap:6px; }
-  .row { display:grid; grid-template-columns:24px 1fr 100px 120px 90px; gap:8px; align-items:center; padding:8px; border:1px solid #1f2937; border-radius:8px; background:#0f1620; }
-  .row img { width:24px; height:24px; border-radius:50%; display:block; }
-  .row .name { display:flex; gap:6px; align-items:baseline; }
-  .row .name a { color:#e5e7eb; text-decoration:none; } .row .name a:hover { text-decoration:underline; }
-  .row .name .sym { color:#9ca3af; font-size:.9rem; }
-  .chg { font-weight:600; text-align:right; }
-  .pos { color:var(--green); } .neg { color:#ef4444; }
-  details { background:#0f1620; border:1px solid var(--border); border-radius:10px; padding:10px 12px; max-width:1100px; margin:14px auto; }
-  details summary { cursor:pointer; font-weight:600; }
-  .muted { color:var(--muted); }
-  .refs a { color:#93c5fd; text-decoration:underline; }
-  details.debug { max-width:1100px; margin:14px auto; background:#0f1620; border:1px solid #1f2937; border-radius:10px; padding:8px 12px; }
-  .log { white-space:pre-wrap; font-family:ui-monospace, Menlo, Consolas, monospace; font-size:12px; color:#cbd5e1; max-height:220px; overflow:auto; background:#0b1119; border:1px solid #1f2937; border-radius:8px; padding:8px; }
-  @media (max-width: 760px) {.two { grid-template-columns:1fr; } .row { grid-template-columns:24px 1fr 90px 100px 80px; }}
+  :root { --bg:#0b0f14; --card:#111827; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; --accent:#243041; --tab:#0f1620; --chip:#0e1724; --chip-ok:#113e22; --chip-err:#5a1313; }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:22px;}
+  h1{text-align:center;margin:0 0 6px;}
+  .meta{text-align:center;color:var(--muted);margin-bottom:12px;}
+  .topbar{max-width:1100px;margin:0 auto 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;}
+  .topbar input,.topbar select{background:#0f1620;color:#e5e7eb;border:1px solid #1f2937;border-radius:8px;padding:6px 10px;}
+  .tabs{max-width:1100px;margin:0 auto 10px;display:flex;gap:8px;}
+  .tab{background:var(--tab);border:1px solid var(--border);color:#cbd5e1;padding:8px 12px;border-radius:10px;cursor:pointer;}
+  .tab.active{background:#1a2230;color:#fff;border-color:#2b3a51;}
+  .panel{display:none}.panel.active{display:block}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;}
+  .card{background:var(--card);border:1px solid var(--border);padding:12px;border-radius:12px;}
+  .card h3{margin:4px 0 10px;display:flex;align-items:center;gap:10px;}
+  .chip{font-size:.75rem;background:var(--chip);border:1px solid #22324a;color:#cbd5e1;padding:2px 8px;border-radius:999px;}
+  .chip.ok{background:var(--chip-ok);border-color:#1d6830;color:#d1fae5}
+  .list{display:grid;gap:6px;}
+  .row{display:grid;grid-template-columns:24px 1fr 100px 120px 90px 90px;gap:8px;align-items:center;padding:8px;border:1px solid #1f2937;border-radius:8px;background:#0f1620;}
+  .row img{width:24px;height:24px;border-radius:50%;}
+  .row .name{display:flex;gap:6px;align-items:baseline}
+  .row .name a{color:#e5e7eb;text-decoration:none}.row .name a:hover{text-decoration:underline}
+  .row .name .sym{color:#9ca3af;font-size:.9rem}
+  .chg{font-weight:600;text-align:right}
+  canvas.spark{width:90px;height:24px}
+  details{background:#0f1620;border:1px solid var(--border);border-radius:10px;padding:10px 12px;max-width:1100px;margin:14px auto;}
+  details summary{cursor:pointer;font-weight:600}
+  .muted{color:#94a3b8}
+  .footer{max-width:1100px;margin:18px auto 0;color:#9ca3af;font-size:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .footer a{color:#93c5fd}
+  @media (max-width:760px){.two{grid-template-columns:1fr}.row{grid-template-columns:24px 1fr 90px 100px 80px 80px}}
 </style>
 </head>
 <body>
@@ -52,18 +45,15 @@
     <span id="updated">Loading…</span> · Auto‑refresh every 60s · <button id="refreshBtn">Refresh</button>
   </div>
 
-  <div class="banner">
-    <h2 style="margin:0 0 6px">What you’re seeing</h2>
-    <p>
-      Day’s <strong>top gainers and losers</strong> by <em>24‑hour % change</em> for:
-      <strong>Tiny Microcaps</strong> (market cap &lt; <strong>$50M</strong>) and <strong>Major Players</strong> (Top‑100).
-      Use the search box to filter. Refreshes every minute.
-    </p>
-    <p class="muted">Small caps can be noisy; verify liquidity/listings before acting.</p>
-  </div>
-
   <div class="topbar">
     <input id="search" type="text" placeholder="Search name or symbol…" />
+    <label for="cat">Category:</label>
+    <select id="cat" title="CoinGecko categories">
+      <option value="all" selected>All</option>
+      <option value="ai-big-data">AI & Big Data</option>
+      <option value="decentralized-finance-defi">DeFi</option>
+      <option value="meme-token">Meme</option>
+    </select>
   </div>
 
   <div class="tabs">
@@ -71,6 +61,7 @@
     <div class="tab" data-tab="majors">Major Players (Top‑100)</div>
   </div>
 
+  <!-- Microcaps -->
   <div id="panel-micro" class="panel active">
     <div class="two">
       <div class="card">
@@ -84,6 +75,7 @@
     </div>
   </div>
 
+  <!-- Majors -->
   <div id="panel-majors" class="panel">
     <div class="two">
       <div class="card">
@@ -98,113 +90,118 @@
   </div>
 
   <details open>
-    <summary>📚 Methodology & Data Sources</summary>
-    <div style="margin-top:8px; line-height:1.5">
-      <ol>
-        <li><strong>Segments.</strong> Microcaps = market cap &lt; $50,000,000. Majors = Top‑100 by market cap.</li>
-        <li><strong>Data flow.</strong> Browser → <em>Your Worker</em> → (CoinCap → CoinPaprika → CoinGecko) with edge caching (60s). Your page never calls the public APIs directly.</li>
-        <li><strong>Computation.</strong> Exclude missing/zero caps or prices; sort by 24h % change; show top 15 gainers/losers in each segment.</li>
-        <li><strong>Refresh.</strong> Auto‑refresh every 60s; the Worker caches for 60s to keep calls light and responsive.</li>
-      </ol>
+    <summary>📚 Methodology & Notes</summary>
+    <div class="muted" style="margin-top:8px;line-height:1.5">
+      <ul>
+        <li><strong>Segments:</strong> Microcaps = market cap &lt; $50M; Majors = Top‑100 by market cap.</li>
+        <li><strong>Category filter:</strong> Uses CoinGecko’s <code>category</code> parameter in <code>/coins/markets</code>. [1](https://askai.glarity.app/search/What-are-the-rate-limits-for-the-CoinGecko-API)</li>
+        <li><strong>Sparklines:</strong> 7‑day arrays from <code>sparkline=true</code> on the same endpoint; rendered as tiny canvases. [1](https://askai.glarity.app/search/What-are-the-rate-limits-for-the-CoinGecko-API)</li>
+        <li><strong>Data path:</strong> Browser → Worker (CORS‑safe) → CoinCap / CoinPaprika / CoinGecko; 60s edge cache keeps calls light. [4](https://docs.polygon.technology/tools/gas/polygon-gas-station/)[5](https://docs.base.org/base-account/reference/core/provider-rpc-methods/eth_gasPrice)</li>
+      </ul>
     </div>
   </details>
 
-  <details class="debug"><summary>🛠 Debug (optional)</summary><div id="debugLog" class="log">No logs yet.</div></details>
+  <details class="debug"><summary>🛠 Debug</summary><pre id="debugLog" class="log">No logs yet.</pre></details>
+
+  <div class="footer">
+    <div>Data via <a href="https://api.coincap.io" target="_blank" rel="noopener">CoinCap</a>, <a href="https://api.coinpaprika.com" target="_blank" rel="noopener">CoinPaprika</a>, <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener">CoinGecko</a>.</div>
+    <div id="teamSig">© 2026 <span id="teamName">Your team name here</span></div>
+  </div>
 
 <script>
-/* ---------- Config: your Worker base URL ---------- */
+/* ====== CONFIG ====== */
 const WORKER_BASE = 'https://movers-proxy.sabina-brookhart.workers.dev';
+const TEAM_NAME = '<< set your team name >>';  // e.g., 'Workflow & Process Reautomation Squad'
 
-/* ---------- Debug logger ---------- */
-const LOG = document.getElementById('debugLog');
-function dlog(...a){ LOG.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; LOG.scrollTop = LOG.scrollHeight; }
+/* ====== Debug logger ====== */
+const LOG=document.getElementById('debugLog');
+function dlog(...a){ LOG.textContent += `\n${new Date().toLocaleTimeString()}  ${a.map(x=>typeof x==='object'?JSON.stringify(x):String(x)).join(' ')}`; LOG.scrollTop=LOG.scrollHeight; }
 
-/* ---------- Tabs ---------- */
+/* ====== Tabs ====== */
 document.querySelectorAll('.tab').forEach(t=>{
-  t.addEventListener('click',()=> {
-    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active'); document.getElementById('panel-'+t.dataset.tab).classList.add('active');
-  });
+  t.addEventListener('click',()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); t.classList.add('active'); document.getElementById('panel-'+t.dataset.tab).classList.add('active'); });
 });
 
-/* ---------- Search ---------- */
-const searchInput=document.getElementById('search'); let cache={ micro:[], majors:[] };
-searchInput.addEventListener('input', ()=> renderAll(cache));
+/* ====== Search & Category ====== */
+const searchInput=document.getElementById('search');
+const catSelect=document.getElementById('cat');
+let cache={ micro:[], majors:[], microGainers:null, microLosers:null, majorsGainers:null, majorsLosers:null };
 
-/* ---------- Formatting helpers ---------- */
-function fmtUSD(x){ if(x==null) return '—'; const n=Number(x); if(n>=1) return '$'+n.toLocaleString(undefined,{maximumFractionDigits:2}); return '$'+n.toFixed(6); }
+searchInput.addEventListener('input', ()=> renderAll(cache));
+catSelect.addEventListener('change', ()=> initLoad());
+
+/* ====== Helpers ====== */
+function fmtUSD(x){ if(x==null) return '—'; const n=Number(x); return n>=1? '$'+n.toLocaleString(undefined,{maximumFractionDigits:2}) : '$'+n.toFixed(6); }
 function fmtCap(x){ if(x==null) return '—'; const n=Number(x); if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; return '$'+Math.round(n).toLocaleString(); }
 function byDesc(a,b){ return (b.pct24??-Infinity)-(a.pct24??-Infinity); }
 function byAsc(a,b){ return (a.pct24??Infinity)-(b.pct24??Infinity); }
 function esc(s){ return String(s||'').replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+/* ====== Tiny sparkline (90x24) ====== */
+function drawSpark(canvas, arr, isUp){
+  if(!canvas || !Array.isArray(arr) || arr.length<8){ return; }
+  const w=canvas.width=90, h=canvas.height=24, min=Math.min(...arr), max=Math.max(...arr), span=(max-min)||1;
+  const y=v=>h-((v-min)/span)*h; const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle=isUp?'#22c55e':'#ef4444'; ctx.lineWidth=1.5; ctx.beginPath();
+  for(let i=0;i<arr.length;i++){ const xx=(i/(arr.length-1))*w, yy=y(arr[i]); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
+  ctx.stroke();
+}
+
+/* ====== Row rendering ====== */
 function rowHTML(c){
-  const img = c.img ? `${esc(c.img)}` : '🪙';
+  const up=(c.pct24??0)>=0;
   return `
     <div class="row">
-      <div>${img}</div>
-      <div class="name">
-        ${esc(c.link)}${esc(c.name)}</a>
-        <span class="sym">${esc(c.symbol)}</span>
-      </div>
+      <div>${c.img ? `${esc(c.img)}` : '🪙'}</div>
+      <div class="name">${esc(c.link)}${esc(c.name)}</a> <span class="sym">${esc(c.symbol)}</span></div>
       <div>${fmtUSD(c.price)}</div>
       <div>${fmtCap(c.cap)}</div>
-      <div class="chg ${c.pct24>=0?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
+      <div class="chg ${up?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
+      <canvas class="spark" width="90" height="24" data-has="${Array.isArray(c.spark)?1:0}"></canvas>
     </div>`;
 }
 function renderList(id, rows){
   const q=(searchInput.value||'').trim().toLowerCase();
-  const f = q? rows.filter(c=>c.name.toLowerCase().includes(q)||c.symbol.toLowerCase().includes(q)) : rows;
-  document.getElementById(id).innerHTML = f.map(rowHTML).join('');
+  const f=q? rows.filter(x=>x.name.toLowerCase().includes(q)||x.symbol.toLowerCase().includes(q)) : rows;
+  const root=document.getElementById(id);
+  root.innerHTML=f.map(rowHTML).join('');
+  // draw sparklines
+  const cvs=root.querySelectorAll('canvas.spark'); f.forEach((c,i)=>{ if(Array.isArray(c.spark)) drawSpark(cvs[i], c.spark, (c.pct24??0)>=0); });
 }
 function renderAll(d){
-  cache=d;
   renderList('micro-gainers', d.microGainers || [...d.micro].sort(byDesc).slice(0,15));
   renderList('micro-losers',  d.microLosers  || [...d.micro].sort(byAsc).slice(0,15));
   renderList('majors-gainers', d.majorsGainers || [...d.majors].sort(byDesc).slice(0,15));
   renderList('majors-losers',  d.majorsLosers  || [...d.majors].sort(byAsc).slice(0,15));
 }
 
-/* ---------- Fetch from your Worker ---------- */
+/* ====== Fetch from Worker ====== */
 async function initLoad(){
-  document.getElementById('updated').textContent = 'Loading…';
+  document.getElementById('updated').textContent='Loading…';
+  const cat = catSelect.value || 'all';
   try{
     const [maj, mic] = await Promise.all([
-      fetch(`${WORKER_BASE}/movers/majors`).then(r=>r.json()),
-      fetch(`${WORKER_BASE}/movers/micro`).then(r=>r.json())
+      fetch(`${WORKER_BASE}/movers/majors?category=${encodeURIComponent(cat)}`).then(r=>r.json()),
+      fetch(`${WORKER_BASE}/movers/micro?category=${encodeURIComponent(cat)}`).then(r=>r.json())
     ]);
+    cache.majors = maj.items || []; cache.micro = mic.items || [];
+    cache.majorsGainers = maj.gainers || null; cache.majorsLosers = maj.losers || null;
+    cache.microGainers  = mic.gainers || null;  cache.microLosers  = mic.losers || null;
 
-    // store universes (optional; used by search filter)
-    cache.majors = maj.items || [];
-    cache.micro  = mic.items  || [];
-
-    // render using pre-computed lists from Worker (if present)
-    cache.majorsGainers = maj.gainers || null;
-    cache.majorsLosers  = maj.losers  || null;
-    cache.microGainers  = mic.gainers || null;
-    cache.microLosers   = mic.losers  || null;
+    // source chips (you can swap to show maj.source/mic.source if desired)
+    ['micro-src1','micro-src2','majors-src1','majors-src2'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.textContent='Worker'; el.classList.add('ok'); } });
 
     renderAll(cache);
-
-    // label chips
-    const ms1=document.getElementById('majors-src1'), ms2=document.getElementById('majors-src2');
-    const mi1=document.getElementById('micro-src1'),  mi2=document.getElementById('micro-src2');
-    if (ms1&&ms2) { ms1.textContent=ms2.textContent='Worker'; ms1.classList.add('ok'); ms2.classList.add('ok'); }
-    if (mi1&&mi2) { mi1.textContent=mi2.textContent='Worker'; mi1.classList.add('ok'); mi2.classList.add('ok'); }
-
-    document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-  } catch (e) {
-    dlog('UI error:', e.message || e);
-    document.getElementById('updated').textContent = 'Error (see Debug)';
-    // show minimal friendly message in both panels if needed
-    ['micro-gainers','micro-losers','majors-gainers','majors-losers'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el && !el.innerHTML.trim()){ el.innerHTML = '<div class="muted">No data yet — check your Worker URL</div>'; }
-    });
+    document.getElementById('updated').textContent='Last updated: '+new Date().toLocaleTimeString();
+  } catch(e){
+    dlog('UI error:', e.message||e);
+    document.getElementById('updated').textContent='Error (see Debug)';
   }
 }
 
-document.getElementById('refreshBtn').onclick = initLoad;
+/* Init */
+document.getElementById('teamName').textContent = TEAM_NAME;
+document.getElementById('refreshBtn').onclick=initLoad;
 initLoad(); setInterval(initLoad, 60_000);
 </script>
 </body>
