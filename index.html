@@ -5,7 +5,7 @@
 <meta charset="UTF-8" />
 <title>Token Movers — Microcaps & Majors</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- v2026-01-16B: Token column shows icon + name (no raw URL) -->
+<!-- v2026-01-16C: Token column fix (icon + name), 5-col layout, headers, category, sparks, footer -->
 <meta name="description" content="Daily token movers: gainers/losers across microcaps (<$50M) & majors (Top‑100), with categories, 7‑day sparklines, and column headers. Served via a Cloudflare Worker." />
 <style>
   :root {
@@ -37,16 +37,17 @@
     gap:8px;align-items:center;padding:8px;
     border:1px solid #1f2937;border-radius:8px;background:#0f1620;
   }
+  /* Token cell: icon + name + symbol, all clickable */
   .tokenCell{display:flex;align-items:center;gap:8px;min-width:0}
-  .tokenCell img{width:20px;height:20px;border-radius:50%;}
-  .tokenCell a{color:#e5e7eb;text-decoration:none;display:inline-flex;align-items:baseline;gap:6px;min-width:0}
+  .tokenCell a{color:#e5e7eb;text-decoration:none;display:inline-flex;align-items:center;gap:8px;min-width:0}
   .tokenCell a:hover{text-decoration:underline}
+  .tokenCell img{width:20px;height:20px;border-radius:50%;}
   .nameText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
   .sym{color:#9ca3af;font-size:.9rem}
   .chg{font-weight:600;text-align:right}
   canvas.spark{width:90px;height:24px}
 
-  /* Column headers: align exactly to .row grid (5 columns) */
+  /* Column headers: align to .row grid (5 columns) */
   .hdrrow{
     display:grid;
     grid-template-columns: 1fr 100px 120px 90px 90px;
@@ -220,25 +221,37 @@ function drawSpark(canvas, arr, isUp){
   ctx.stroke();
 }
 
-/* ====== Row rendering (Token = icon + name + symbol) ====== */
+/* ====== Row rendering (Token = icon + name + symbol link) ====== */
 function rowHTML(c){
   const up=(c.pct24??0)>=0;
-  const img = c.img ? `${esc(c.img)}` : '<span>🪙</span>';
+  const img = c.img ? `<img src="${esc(c.img)}" alt="" />` : '<span>🪙</span>';
+  const safeURL = esc(c.link || '#');
   return `
     <div class="row">
+      <!-- Token column (clickable): icon + name + symbol -->
       <div class="tokenCell">
-        ${esc(c.link)}
+        <a href="${safeURL}" target="_blank" rel="noopener noreferrer">
           ${img}
           <span class="nameText">${esc(c.name)}</span>
           <span class="sym">${esc(c.symbol)}</span>
         </a>
       </div>
+
+      <!-- Price -->
       <div>${fmtUSD(c.price)}</div>
+
+      <!-- Market Cap -->
       <div>${fmtCap(c.cap)}</div>
+
+      <!-- 24h % -->
       <div class="chg ${up?'pos':'neg'}">${(c.pct24??0).toFixed(2)}%</div>
+
+      <!-- 7d sparkline -->
       <canvas class="spark" width="90" height="24"></canvas>
     </div>`;
 }
+
+/* ====== Renderers ====== */
 function renderList(id, rows){
   const q=(searchInput.value||'').trim().toLowerCase();
   const f=q? rows.filter(x=>x.name.toLowerCase().includes(q)||x.symbol.toLowerCase().includes(q)) : rows;
@@ -246,8 +259,8 @@ function renderList(id, rows){
   root.innerHTML=f.map(rowHTML).join('');
 
   // draw sparklines
-  const cvs=root.querySelectorAll('canvas.spark');
-  f.forEach((c,i)=>{ if(Array.isArray(c.spark)) drawSpark(cvs[i], c.spark, (c.pct24??0)>=0); });
+  const canvases=root.querySelectorAll('canvas.spark');
+  f.forEach((c,i)=>{ if(Array.isArray(c.spark)) drawSpark(canvases[i], c.spark, (c.pct24??0)>=0); });
 }
 function renderAll(d){
   renderList('micro-gainers', d.microGainers || [...d.micro].sort(byDesc).slice(0,15));
@@ -259,23 +272,26 @@ function renderAll(d){
 /* ====== Fetch from Worker ====== */
 async function initLoad(){
   document.getElementById('updated').textContent='Loading…';
-  const cat = catSelect.value || 'all';
+  const cat = (document.getElementById('cat').value || 'all');
   try{
     const [maj, mic] = await Promise.all([
       fetch(`${WORKER_BASE}/movers/majors?category=${encodeURIComponent(cat)}`).then(r=>r.json()),
       fetch(`${WORKER_BASE}/movers/micro?category=${encodeURIComponent(cat)}`).then(r=>r.json())
     ]);
 
-    cache.majors = maj.items || []; cache.micro = mic.items || [];
-    cache.majorsGainers = maj.gainers || null; cache.majorsLosers = maj.losers || null;
-    cache.microGainers  = mic.gainers || null;  cache.microLosers  = mic.losers  || null;
+    // store and render
+    const cache = {
+      majors: maj.items || [], micro: mic.items || [],
+      majorsGainers: maj.gainers || null, majorsLosers: maj.losers || null,
+      microGainers: mic.gainers || null, microLosers: mic.losers || null
+    };
+    renderAll(cache);
 
-    // label chips
+    // label “Worker” chips
     ['micro-src1','micro-src2','majors-src1','majors-src2'].forEach(id=>{
       const el=document.getElementById(id); if(el){ el.textContent='Worker'; el.classList.add('chip','ok'); }
     });
 
-    renderAll(cache);
     document.getElementById('updated').textContent='Last updated: '+new Date().toLocaleTimeString();
   } catch(e){
     dlog('UI error:', e.message||e);
